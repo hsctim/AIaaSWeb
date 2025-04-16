@@ -1,71 +1,51 @@
-﻿(function ($) {
+﻿/**
+ * CreateOrEditNlpQAModal
+ * Handles the creation and editing of NLP QA (Question-Answer) pairs within a modal interface.
+ */
+(function ($) {
     app.modals.CreateOrEditNlpQAModal = function () {
-        var _nlpQAsService = abp.services.app.nlpQAs;
+        const _nlpQAsService = abp.services.app.nlpQAs;
 
-        var _modalManager;
-        var _$nlpQAInformationForm = null;
+        let _modalManager;
+        let _$nlpQAInformationForm = null;
 
+        /**
+         * Initializes the modal and sets up form validation.
+         * @param {Object} modalManager - The modal manager instance.
+         */
         this.init = function (modalManager) {
             _modalManager = modalManager;
-
-            var modal = _modalManager.getModal();
-
             _$nlpQAInformationForm = _modalManager.getModal().find('form[name=NlpQAInformationsForm]');
             _$nlpQAInformationForm.validate();
 
-            var chatbtotId = _$nlpQAInformationForm.find("#NlpChatbotId").val();
+            const chatbotId = _$nlpQAInformationForm.find("#NlpChatbotId").val();
 
-            _nlpQAsService.getCaterogies(chatbtotId).done(function (json) {
-                $("#ModalCategoryList").empty();
-
-                $.each(json, function (i, item) {
-                    if (item)
-                        $("#ModalCategoryList").append($("<option>").attr('value', item).text(item));
+            // Load categories for the chatbot
+            _nlpQAsService.getCaterogies(chatbotId).done((categories) => {
+                const $categoryList = $("#ModalCategoryList").empty();
+                categories.forEach((category) => {
+                    if (category) {
+                        $categoryList.append($("<option>").attr('value', category).text(category));
+                    }
                 });
             });
 
-
-            var editPermission = abp.auth.hasPermission('Pages.NlpChatbot.NlpQAs.Edit');
-
-            /*            updateWorkflowSelect();*/
-
-            if ($('#IsViewMode').val() == "1") {
-                $('#NlpQA_QuestionCategory').attr('readonly', true);
-                $('.NlpApproximateQuestion').attr('readonly', true);
-                $('.NlpApproximateAnswer').attr('readonly', true);
-                _$nlpQAInformationForm.find('select').prop('disabled', 'disabled');
-                _$nlpQAInformationForm.find('check').prop('disabled', 'disabled');
+            // Handle view mode (read-only)
+            if ($('#IsViewMode').val() === "1") {
+                _$nlpQAInformationForm.find('input, select, textarea').attr('readonly', true).addClass('readonly');
+                _$nlpQAInformationForm.find('select, .NlpApproximateQuestion, .NlpApproximateAnswer').prop('disabled', true);
             }
         };
 
-        $('.nlpdeletebutton').click(function (e) {
-            $(this).closest("div.questonDiv").remove();
-
-            if ($(".NlpApproximateQuestion").length == 0)
-                addNewQuestion("");
-
-            if ($(".NlpApproximateAnswer").length == 0)
-                addNewAnswer("");
-        });
-
-        $('#NlpQA_AddQuestion').click(function (e) {
-            addNewQuestion("");
-        });
-
-        $('#NlpQA_AddAnswer').click(function (e) {
-            addNewAnswer("");
-        });
-
+        /**
+         * Adds a new question input field.
+         * @param {string} value - The initial value of the question input.
+         */
         function addNewQuestion(value) {
-            var questions = $(".NlpApproximateQuestion");
+            // Remove empty question inputs
+            $(".NlpApproximateQuestion").filter((_, item) => item.value === "").closest("div.d-flex").remove();
 
-            $.each(questions, function (index, item) {
-                if (item.value === "") {
-                    $(item).closest("div.d-flex").remove();
-                }
-            });
-
-            return $('#NlpQuestionDiv').before(function () {
+            return $('#NlpQuestionDiv').before(() => {
                 return $("<div/>").addClass("questonDiv")
                     .append($("<div/>").addClass("d-flex justify-content-end mb-2")
                         .append($("<div/>").addClass("w-100 me-auto")
@@ -83,17 +63,11 @@
                                 .addClass("form-control nlpdeletebutton btn btn-danger btn-sm text-nowrap")
                                 .attr("type", "button")
                                 .prop('title', app.localize("Delete"))
-                                .prepend($("<i/>")
-                                    .addClass("fa fa-minus mx-0"))
-                                .append($("<span/>")
-                                    .addClass("d-none d-lg-inline-block")
-                                    .text(app.localize("Delete"))
-                                )
-                                .click(function (e) {
+                                .prepend($("<i/>").addClass("fa fa-minus mx-0"))
+                                .append($("<span/>").addClass("d-none d-lg-inline-block").text(app.localize("Delete")))
+                                .click((e) => {
                                     e.target.closest("div.d-flex").remove();
-                                    if ($(".NlpApproximateQuestion").length == 0)
-                                        addNewQuestion("");
-
+                                    if ($(".NlpApproximateQuestion").length === 0) addNewQuestion("");
                                 })
                             )
                         )
@@ -101,23 +75,17 @@
             });
         }
 
+        /**
+         * Adds a new answer input field.
+         * @param {string} value - The initial value of the answer input.
+         */
         function addNewAnswer(value) {
-            var answers = $(".NlpApproximateAnswer");
+            // Remove empty answer inputs
+            $(".NlpApproximateAnswer").filter((_, item) => item.value === "").closest("div.d-flex").remove();
 
-            $.each(answers, function (index, item) {
-                if (item.value === "") {
-                    $(item).closest("div.d-flex").remove();
-                }
-            });
-
-            return $('#NlpAnswerDiv').before(function () {
-                return $("<div/>")
-                    .addClass("d-flex justify-content-end mb-2")
-
-                    .append(
-                        $("<div/>")
-                        .addClass("input-group flex-grow-1")
-
+            return $('#NlpAnswerDiv').before(() => {
+                return $("<div/>").addClass("d-flex justify-content-end mb-2")
+                    .append($("<div/>").addClass("input-group flex-grow-1")
                         .append($("<input/>")
                             .addClass("form-control NlpApproximateAnswer")
                             .attr("placeholder", app.localize("InputNewNlpAnswer"))
@@ -126,137 +94,90 @@
                             .val(value)
                             .prop('required', true)
                         )
-
-                        .append(
-                            $("<div class='my-auto ms-3'><label class='form-check form-check-custom form-check-solid gpt-check'><input type='checkbox' name='gpts[]' class='form-check-input gpt-check-input NlpGptCheck'></label></div>")
+                        .append($("<div/>").addClass("my-auto ms-3")
+                            .append($("<label/>").addClass("form-check form-check-custom form-check-solid gpt-check")
+                                .append($("<input/>").attr("type", "checkbox").addClass("form-check-input gpt-check-input NlpGptCheck"))
+                            )
                         )
-
-
                     )
                     .append($("<div/>").addClass("ms-5 my-auto")
                         .append($("<button/>")
                             .addClass("nlpdeletebutton btn btn-danger btn-sm text-nowrap")
                             .attr("type", "button")
                             .prop('title', app.localize("Delete"))
-                            .prepend($("<i/>")
-                                .addClass("fa fa-minus mx-0")
-                            )
-                            .append($("<span/>")
-                                .addClass("d-none d-lg-inline-block")
-                                .text(app.localize("Delete"))
-                            )
-                            .click(function (e) {
+                            .prepend($("<i/>").addClass("fa fa-minus mx-0"))
+                            .append($("<span/>").addClass("d-none d-lg-inline-block").text(app.localize("Delete")))
+                            .click((e) => {
                                 e.target.closest("div.d-flex").remove();
-
-                                if ($(".NlpApproximateAnswer").length == 0)
-                                    addNewAnswer("");
+                                if ($(".NlpApproximateAnswer").length === 0) addNewAnswer("");
                             })
                         )
                     );
             });
         }
 
+        /**
+         * Saves the QA data by validating and submitting the form.
+         */
         this.save = function () {
-
-            if (_$nlpQAInformationForm.find("input[name='qaType']").val() == "1") {
+            // Handle QA type-specific validation
+            if (_$nlpQAInformationForm.find("input[name='qaType']").val() === "1") {
                 _$nlpQAInformationForm.find(".NlpApproximateQuestion").prop('required', false);
             }
 
-
-
-            $.each($(".NlpApproximateQuestion"), function (index, item) {
+            // Trim all question and answer inputs
+            $(".NlpApproximateQuestion, .NlpApproximateAnswer").each((_, item) => {
                 $(item).val($(item).val().trim());
             });
 
-            $.each($(".NlpApproximateAnswer"), function (index, item) {
-                $(item).val($(item).val().trim());
-            });
+            // Remove empty questions and answers
+            $(".NlpApproximateQuestion, .NlpApproximateAnswer").filter((_, item) => item.value.trim() === "").closest("div.d-flex").remove();
 
-            if ($(".NlpApproximateQuestion").length > 1) {
-                $.each($(".NlpApproximateQuestion"), function (index, item) {
-                    if (item.value.trim() === "") {
-                        $(item).closest("div.d-flex").remove();
-                    }
-                });
-            }
-
-            if ($(".NlpApproximateAnswer").length > 1) {
-                $.each($(".NlpApproximateAnswer"), function (index, item) {
-                    if (item.value.trim() === "") {
-                        $(item).closest("div.d-flex").remove();
-                    }
-                });
-            }
-
+            // Highlight the first invalid tab if validation fails
             _$nlpQAInformationForm.find('input:invalid').each(function () {
-                // Find the tab-pane that this element is inside, and get the id
-                var $closest = $(this).closest('.tab-pane');
-                var id = $closest.attr('id');
-                // Find the link that corresponds to the pane and have it show
+                const $closest = $(this).closest('.tab-pane');
+                const id = $closest.attr('id');
                 $('.nav a[href="#' + id + '"]').tab('show');
-                // Only want to do it once
-                return false;
+                return false; // Stop after the first invalid input
             });
-
 
             if (!_$nlpQAInformationForm.valid()) {
-                $.each($(".NlpApproximateQuestion"), function (index, item) {
-                    if (item.value.trim() === "") {
-                        $(item).addClass("is-invalid");
-                    }
-                });
+                $(".NlpApproximateQuestion").filter((_, item) => item.value.trim() === "").addClass("is-invalid");
                 return;
             }
 
-            //get all checked gpt ids   
-            var gpts = $(".NlpGptCheck").map(function () {
-                return $(this).is(":checked") ? true : false;
-            }).get();
-            
-            var nlpQA = _$nlpQAInformationForm.serializeFormToObject();
+            // Collect GPT checkbox values
+            const gpts = $(".NlpGptCheck").map((_, checkbox) => $(checkbox).is(":checked")).get();
 
-            let answerSets = []
-            for (let i = 0; i < nlpQA.answers.length; i++) {
-                let answerSet = {
-                    answer: nlpQA.answers[i],
-                    gpt: gpts[i]
-                }
-                answerSets.push(answerSet)          
-            }
-            nlpQA.answerSets = answerSets;
+            // Serialize form data and construct answer sets
+            const nlpQA = _$nlpQAInformationForm.serializeFormToObject();
+            nlpQA.answerSets = nlpQA.answers.map((answer, index) => ({
+                answer,
+                gpt: gpts[index]
+            }));
 
-            //delete answers from nlpQA
+            // Remove the original answers array
             delete nlpQA.answers;
 
             _modalManager.setBusy(true);
 
-            _nlpQAsService.createOrEdit(
-                nlpQA
-            ).done(function () {
-                abp.notify.info(app.localize('SavedSuccessfully'));
-                _modalManager.close();
-                abp.event.trigger('app.createOrEditNlpQAModalSaved');
-            }).fail(function () {
-                _modalManager.close();
-            }).always(function () {
-                _modalManager.setBusy(false);
-            });
+            // Submit the QA data
+            _nlpQAsService.createOrEdit(nlpQA)
+                .done(() => {
+                    abp.notify.info(app.localize('SavedSuccessfully'));
+                    _modalManager.close();
+                    abp.event.trigger('app.createOrEditNlpQAModalSaved');
+                })
+                .fail(() => {
+                    _modalManager.close();
+                })
+                .always(() => {
+                    _modalManager.setBusy(false);
+                });
         };
 
-
-        //function updateWorkflowSelect() {
-        //    if ($('#enabledWorkflow').is(':checked')) {
-        //        $('#currentWfState').prop('disabled', false);
-        //        $('#nextWfState').prop('disabled', false);
-        //    } else {
-        //        $('#currentWfState').prop('disabled', 'disabled');
-        //        $('#nextWfState').prop('disabled', 'disabled');
-        //    }
-        //}
-
-        //$("#enabledWorkflow").on("click", function () {
-        //    updateWorkflowSelect();
-        //});
-
+        // Event Handlers
+        $('#NlpQA_AddQuestion').click(() => addNewQuestion(""));
+        $('#NlpQA_AddAnswer').click(() => addNewAnswer(""));
     };
 })(jQuery);

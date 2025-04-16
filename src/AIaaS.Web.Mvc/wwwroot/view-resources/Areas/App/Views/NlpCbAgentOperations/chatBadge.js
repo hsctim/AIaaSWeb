@@ -1,115 +1,111 @@
-﻿(chatBadge = function () {
+﻿/**
+ * ChatBadge Module
+ * Handles the display and interaction of a chatbot badge on the webpage.
+ */
+(function () {
+    const rootURL = "https://localhost:44302/";
+    let chatbotId = "";
+    let chatbotIcon = `${rootURL}Chatbot/ProfilePicture/`;
+    let badgeIcon = `${rootURL}Chatbot/ProfilePicture/`;
+    const webchatURL = `${rootURL}webchat/index.html`;
+    const elementKey = "GRwyb85K";
 
-    var rootURL = "https://localhost:44302/",
-        chatbotId = "",
-        chatbotIcon = rootURL + "Chatbot/ProfilePicture/",
-        badgeIcon = rootURL + "Chatbot/ProfilePicture/",
-        wss = "wss://localhost:44302/signalr-chatbot?chatbotId=",
-        webchatURL = rootURL + "webchat/index.html",
+    /**
+     * Binds an event listener to an element.
+     * @param {HTMLElement} ele - The element to bind the event to.
+     * @param {string} type - The type of event (e.g., 'click').
+     * @param {Function} handle - The event handler function.
+     */
+    const bindEvent = (ele, type, handle) => {
+        if (ele.addEventListener) {
+            ele.addEventListener(type, handle);
+        } else if (ele.attachEvent) {
+            ele.attachEvent(`on${type}`, handle);
+        }
+    };
 
-        elementKey = "GRwyb85K",
-        //badgeTop = (window.innerHeight - badgeHeight) / 2,
-        paneWidth = Math.min(477, window.innerWidth),
-        paneHeigh = Math.min(500, window.innerHeight),
+    /**
+     * Initializes the chatbot badge by reading attributes from the script element
+     * and setting up the badge and its click event.
+     */
+    const initialize = () => {
+        const scriptElement = document.getElementById("chatBadgeScript");
+        if (!scriptElement) return;
 
-        //panelHeight = Math.min(),
+        chatbotId = scriptElement.getAttribute("chatbotId");
+        if (!chatbotId) return;
 
-        bindEvent = function (ele, type, handle) {
-            if (ele.addEventListener) {
-                ele.addEventListener(type, handle);
-            } else if (ele.attachEvent) {
-                ele.attachEvent('on' + type, handle);
-            }
-        },
+        // Set default badge style if not provided
+        let badgeStyle = scriptElement.getAttribute("badgeStyle") ||
+            "top:150px; width:60px; height:60px; right:0px; overflow:hidden; border-radius:50%; position:fixed";
 
-        initialize = function () {
-            var scriptElement = document.getElementById("chatBadgeScript");
-            chatbotId = scriptElement.getAttribute("chatbotId");
-            if (!chatbotId)
-                return;
+        // Update chatbot and badge icons if provided
+        chatbotIcon = scriptElement.getAttribute("chatbotIcon") || `${chatbotIcon}${chatbotId}`;
+        badgeIcon = scriptElement.getAttribute("badgeIcon") || `${badgeIcon}${chatbotId}`;
 
-            //set default value if badgeStyle is null
-            var badgeStyle = scriptElement.getAttribute("badgeStyle");
-            if (!badgeStyle) {
-                badgeStyle = "top:150px; width:60px; height:60px; right:0px; overflow:hidden; border-radius:50%; position:fixed";
-            }
+        // Add the chatbot badge and set up its click event
+        addChatbotBadgePane(badgeStyle);
+        addChatbotBadgeClickEvent();
+    };
 
-            var _chatbotIcon = scriptElement.getAttribute("chatbotIcon");
-            if (_chatbotIcon)
-                chatbotIcon = _chatbotIcon;
-            else
-                chatbotIcon = chatbotIcon + chatbotId;
+    /**
+     * Adds the chatbot badge and panel to the DOM.
+     * @param {string} badgeStyle - The CSS style for the badge.
+     */
+    const addChatbotBadgePane = (badgeStyle) => {
+        const badgeId = `chatbotBadge${elementKey}`;
+        const paneId = `chatbotPanel${elementKey}`;
 
-            var _badgeIcon = scriptElement.getAttribute("badgeIcon");
-            if (_badgeIcon)
-                badgeIcon = _badgeIcon;
-            else
-                badgeIcon = badgeIcon + chatbotId;
+        if (!document.getElementById(badgeId)) {
+            const html = `
+                <div id="${badgeId}" style="${badgeStyle}">
+                    <img src="${badgeIcon}" style="width:100%;height:100%;" />
+                </div>
+                <div id="${paneId}"></div>
+            `;
 
-            wss = wss + chatbotId;
+            const div = document.createElement("div");
+            div.innerHTML = html;
+            document.body.appendChild(div);
+        }
+    };
 
-            addChatbotBadgePane(badgeStyle);
-            addChatbotBadgeClickEvent();
-        },
+    /**
+     * Sets up the click event for the chatbot badge to display the chat panel.
+     */
+    const addChatbotBadgeClickEvent = () => {
+        const badgeId = `chatbotBadge${elementKey}`;
+        const paneId = `chatbotPanel${elementKey}`;
 
-        addChatbotBadgePane = function (badgeStyle) {
-            var badgeId = 'chatbotBadge' + elementKey;
-            var paneId = 'chatbotPanel' + elementKey;
+        const badge = document.getElementById(badgeId);
+        const pane = document.getElementById(paneId);
 
-            var div = document.getElementById(badgeId);
-            if (div == null) {
-                var html =
-                    "   <div id='" + badgeId + "' style='" + badgeStyle + "'>" +
-                    "      <img src='" + badgeIcon + "' style='width:100%;height:100%;' >" +
-                    "       </img>" +
-                    "   </div>" +
-                    "   <div id='" + paneId + "'> " +
-                    "   </div>"
-                    ;
+        if (!badge || !pane) return;
 
-                var div = document.createElement("div");
-                div.innerHTML = html;
-                document.body.appendChild(div);
-            }
-        },
+        bindEvent(badge, "click", () => {
+            badge.style.display = "none";
 
+            // Set default pane style if not provided
+            const scriptElement = document.getElementById("chatBadgeScript");
+            const paneStyle = scriptElement.getAttribute("paneStyle") ||
+                "bottom:0px; width:450px; height:80%; right:10px; overflow:hidden; position:fixed; z-index:99990;";
+            pane.setAttribute("style", paneStyle);
 
-        addChatbotBadgeClickEvent = function () {
-            var badgeId = 'chatbotBadge' + elementKey;
-            var paneId = 'chatbotPanel' + elementKey;
+            // Add the chat iframe to the panel
+            const iframe = `
+                <iframe src="${webchatURL}?chatbotId=${chatbotId}&chatbotIcon=${encodeURIComponent(chatbotIcon)}" 
+                        style="width: 100%; height: 100%; border: 0;">
+                </iframe>`;
+            pane.innerHTML = iframe;
 
-            document.getElementById(badgeId)
-                .addEventListener('click', function (event) {
+            // Listen for the close event to hide the panel and show the badge
+            document.addEventListener("closeWebChatEvent", () => {
+                badge.style.display = "block";
+                pane.style.display = "none";
+            }, { once: true });
+        });
+    };
 
-                    var scriptElement = document.getElementById("chatBadgeScript");
-                    var badge = document.getElementById(badgeId);
-                    var pane = document.getElementById(paneId);
-
-                    badge.style.display = "none";
-
-                    //set default value if paneStyle is null
-                    var paneStyle = scriptElement.getAttribute("paneStyle");
-                    if (!paneStyle) {
-                        paneStyle = "top:150px; width:60px; height:60px; right:0px; overflow:hidden; border-radius:50%; position:fixed";
-                    }
-                    pane.setAttribute("style", paneStyle);
-
-
-                    var iframe = "<iframe src='" + webchatURL + "?chatbotId=" + chatbotId +
-                        "&chatbotIcon=" + encodeURIComponent(chatbotIcon) + "' style='width: 100%; height: 100%; border: 0;'>" +
-                        "</iframe>";
-
-                    pane.innerHTML = iframe;
-
-                    window.document.addEventListener('closeWebChatEvent',
-                        function (e) {
-                            badge.style.display = "block";
-                            pane.style.display = "none";
-                        }, { once: true });
-                });
-        };
-
+    // Initialize the chatbot badge on page load
     initialize();
 })();
-
-

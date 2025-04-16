@@ -1,113 +1,58 @@
-﻿(function ($) {
+﻿/**
+ * ExportNlpQAModal
+ * Handles the export functionality for NLP QA (Question-Answer) pairs within a modal interface.
+ */
+(function ($) {
     app.modals.ExportNlpQAModal = function () {
-        var _nlpQAsService = abp.services.app.nlpQAs;
+        const _nlpQAsService = abp.services.app.nlpQAs;
 
-        var _modalManager;
-        var _$nlpQAInformationForm = null;
+        let _modalManager;
+        let _$nlpQAInformationForm = null;
 
+        /**
+         * Initializes the modal and sets up form validation.
+         * @param {Object} modalManager - The modal manager instance.
+         */
         this.init = function (modalManager) {
             _modalManager = modalManager;
+            const $modal = _modalManager.getModal();
 
-            var modal = _modalManager.getModal();
-            modal.find('div.modal-lg').removeClass('modal-lg');
-            //modal.find('.date-picker').datetimepicker({
-            //    locale: abp.localization.currentLanguage.name,
-            //    format: 'L'
-            //});
+            // Adjust modal size
+            $modal.find('div.modal-lg').removeClass('modal-lg');
 
-            _$nlpQAInformationForm = _modalManager.getModal().find('form[name=NlpQAInformationsForm]');
+            // Initialize the form and enable validation
+            _$nlpQAInformationForm = $modal.find('form[name=NlpQAInformationsForm]');
             _$nlpQAInformationForm.validate();
-
         };
 
+        /**
+         * Handles the export button click event to export NLP QA data to a file.
+         */
         $('#ExportToExcelFile').click(function (e) {
+            e.preventDefault(); // Prevent default form submission behavior
+
+            // Set the modal to busy state
             _modalManager.setBusy(true);
-            e.preventDefault();
-            //debugger
+
+            // Call the service to export the QA data
             _nlpQAsService.getNlpQAsToFile($('#ChatbotSelect').val())
                 .done(function (result) {
+                    // Download the exported file
                     app.downloadTempFile(result);
                     _modalManager.close();
-                }).fail(function () {
+                })
+                .fail(function () {
+                    // Close the modal on failure
                     _modalManager.close();
-                }).always(function () {
+                })
+                .always(function () {
+                    // Reset the modal busy state
                     _modalManager.setBusy(false);
                 });
-
-
-            //return abp.ajax({
-            //    url: abp.appPath + 'App/NlpQAs/ImportExcelFile',
-            //    type: 'POST',
-            //    data: formData,
-            //    //async: false,
-            //    //cache: false,
-            //    contentType: false,
-            //    processData: false,
-            //}).done(function () {
-            //    abp.notify.info(app.localize('ExportSuccessfully'));
-            //    _modalManager.close();
-            //}).fail(function () {
-            //    _modalManager.close();
-            //}).always(function () {
-            //    _modalManager.setBusy(false);
-            //});
         });
-
-
-        //$('#ImportQAsFromExcelFile').change(function (e) {
-        //    uploadSubmit();
-        //});
-
-        //function uploadSubmit() {
-        //    debugger;
-
-        //    var file = $('#ImportQAsFromExcelFile')[0].files[0];
-
-        //    if (file) {
-        //        if (file.size > 1048576) //1MB
-        //        {
-        //            abp.message.warn(app.localize('NlpQA_ExcelFile_Warn_SizeLimit', 1));
-        //            $('#ImportQAsFromExcelFile').val("");
-        //            return false;
-        //        }
-        //    }
-
-        //    var dto = _$nlpQAInformationForm.serializeFormToObject();
-        //    //dto["IgnoreDuplication"] = $('#IgnoreDuplication').prop("checked")
-
-        //    var formData = new FormData();
-        //    for (var k in dto) {
-        //        formData.append(k, dto[k]);
-        //    }
-
-        //    if (file)
-        //        formData.append("file", file);
-
-        //    $('#ImportQAsFromExcelButton').removeAttr('for').empty()
-        //        .attr('aria-disabled', "true")
-        //        .addClass("disabled")
-        //        .append($("<i/>").addClass("spinner-border spinner-border-sm mr-5"))
-        //        .append(app.localize("ImportingFromExcel"));
-
-        //    _modalManager.setBusy(true);
-
-        //    return abp.ajax({
-        //        url: abp.appPath + 'App/NlpQAs/ImportExcelFile',
-        //        type: 'POST',
-        //        data: formData,
-        //        //async: false,
-        //        //cache: false,
-        //        contentType: false,
-        //        processData: false,
-        //    }).done(function () {
-        //        abp.notify.info(app.localize('ImportSuccessfully'));
-        //        _modalManager.close();
-        //        abp.event.trigger('app.createOrEditNlpQAModalSaved');
-        //    }).fail(function () {
-        //        _modalManager.close();
-        //    }).always(function () {
-        //        _modalManager.setBusy(false);
-        //    });
-        //}
     };
 })(jQuery);
+
+
+
+

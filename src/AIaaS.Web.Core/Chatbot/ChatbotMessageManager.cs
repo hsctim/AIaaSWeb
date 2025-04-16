@@ -50,9 +50,8 @@ namespace AIaaS.Chatbot
     [DisableAuditing]
     public class ChatbotMessageManager : ApplicationService, IChatbotMessageManager
     {
-        private const int _SemaphoreSlimWaitTimeOut = 60000; // Consider making this configurable
+        private const int _SemaphoreSlimWaitTimeOut = 60000;
 
-        // Use IReadOnlyRepository for read-only operations if applicable
         private readonly IRepository<NlpCbMessage, Guid> _nlpCbMessageRepository;
         private readonly IRepository<NlpCbTrainingData, Guid> _nlpCbTrainingDataRepository;
         private readonly IRepository<NlpCbQAAccuracy, Guid> _nlpCbQAAccuracyRepository;
@@ -69,22 +68,20 @@ namespace AIaaS.Chatbot
         private readonly ISessionAppService _sessionAppService;
         private readonly INlpLineUsersAppService _nlpLineUsersAppService;
         private readonly INlpFacebookUsersAppService _nlpFacebookUsersAppService;
-        private ClientMessenger _clientMessenger; // Consider lazy initialization or injecting a factory
+        private ClientMessenger _clientMessenger;
 
-        // Consider using ConcurrentDictionary for thread-safe caching if accessed/modified concurrently outside of single requests
         private NlpChatroomStatus __nlpChatroomStatusCache;
         private UserLoginInfoDto __userLoginInfoDtoCache;
         private NlpClientInfoDto __nlpClientInfoDtoCache;
         private NlpWorkflowStateInfo __nlpWorkflowStateInfoCache;
 
 
-        private List<ChatbotMessageManagerMessageDto> _deferredSendMessageToChatroomAgent; // Consider thread-safety if accessed concurrently
+        private List<ChatbotMessageManagerMessageDto> _deferredSendMessageToChatroomAgent;
 
         private readonly INlpPolicyAppService _nlpPolicyAppService;
 
-        //private IHubCallerClients _hubCallerClients; // Commented out, remove if unused
+        //private IHubCallerClients _hubCallerClients;
 
-        // Constructor Dependencies: Consider reducing the number of dependencies if possible (e.g., facade services)
         public ChatbotMessageManager(
             IRepository<NlpCbMessage, Guid> nlpCbMessageRepository,
             IRepository<NlpCbTrainingData, Guid> nlpCbTrainingDataRepository,
@@ -99,12 +96,13 @@ namespace AIaaS.Chatbot
             ICacheManager cacheManager,
             ExternalCustomData externalCustomData,
             NlpChatbotFunction nlpChatbotFunction,
-            //NlpCbDictionariesFunction nlpCbDictionariesFunction, // Commented out, remove if unused
+            //NlpCbDictionariesFunction nlpCbDictionariesFunction,
             ISessionAppService sessionAppService,
             INlpLineUsersAppService nlpLineUsersAppService,
             INlpFacebookUsersAppService nlpFacebookUsersAppService,
+
             INlpPolicyAppService nlpPolicyAppService
-            //IHubCallerClients hubCallerClients // Commented out, remove if unused
+            //IHubCallerClients hubCallerClients
             )
         {
             _nlpCbMessageRepository = nlpCbMessageRepository;
@@ -120,36 +118,29 @@ namespace AIaaS.Chatbot
             _nlpWorkflowStateRepository = nlpWorkflowStateRepository;
             _nlpClientInfo = nlpClientInfo;
             _nlpChatbotFunction = nlpChatbotFunction;
-            //_nlpCbDictionariesFunction = nlpCbDictionariesFunction; // Commented out, remove if unused
+            //_nlpCbDictionariesFunction = nlpCbDictionariesFunction;
             _sessionAppService = sessionAppService;
-            //_hubCallerClients = hubCallerClients; // Commented out, remove if unused
+            //_hubCallerClients = hubCallerClients;
             _nlpLineUsersAppService = nlpLineUsersAppService;
             _nlpFacebookUsersAppService = nlpFacebookUsersAppService;
+
             _nlpPolicyAppService = nlpPolicyAppService;
         }
 
         /// <summary>
-        /// Client User sends SignalR message to Chatbot.
+        /// Client User送Signal-r訊號至Chatbot
         /// </summary>
-        /// <param name="input">Message input DTO.</param>
+        /// <param name="input"></param>
         [DisableAuditing]
         public async Task ReceiveClientSignalRMessage(ChatbotMessageManagerMessageDto input)
         {
-            // Validate input early
-            if (input?.ChatbotId == null || input.ClientId == null)
-            {
-                Logger.Warn($"Received invalid input in {nameof(ReceiveClientSignalRMessage)}.");
-                // Consider throwing a specific argument exception or returning early
-                return;
-            }
+            //_lpCbWebApiClient.PrepareQueryPython();
 
-            //_lpCbWebApiClient.PrepareQueryPython(); // Commented out, remove if unused
-
-            await AddNlpClientConnectionCache(new NlpClientConnection
+            await AddNlpClientConnectionCache(new NlpClientConnection()
             {
                 ClientId = input.ClientId.Value,
                 ChatbotId = input.ChatbotId.Value,
-                ConnectionId = input.ConnectionId, // Ensure ConnectionId is reliably available
+                ConnectionId = input.ConnectionId,
                 UpdatedTime = Clock.Now,
                 AgentId = input.AgentId,
                 Connected = true,
@@ -159,145 +150,191 @@ namespace AIaaS.Chatbot
 
             var chatbot = _nlpChatbotFunction.GetChatbotDto(input.ChatbotId.Value);
             if (chatbot == null)
-            {
-                // Use nameof for exception messages where appropriate
-                throw new UserFriendlyException(ChatErrorCode.Error_InvalidChatbotId, $"{nameof(input.ChatbotId)} should be a valid guid.");
-            }
+                throw new UserFriendlyException(ChatErrorCode.Error_InvalidChatbotId, "ChatbotId should be a valid guid.");
 
-            // Use !string.IsNullOrEmpty for clarity
-            if (!string.IsNullOrEmpty(input.ConnectionProtocol))
-            {
-                // Consider creating the DTO outside the method call for clarity
-                var clientInfo = new NlpClientInfoDto(chatbot.TenantId, input.ClientId.Value, input.ConnectionProtocol, input.ClientIP, input.ClientChannel, input.ClientToken);
-                await SetNlpClientInfoDtosCache(clientInfo);
-            }
+            if (input.ConnectionProtocol.IsNullOrEmpty() == false)
+                await SetNlpClientInfoDtosCache(new NlpClientInfoDto(chatbot.TenantId, input.ClientId.Value, input.ConnectionProtocol, input.ClientIP, input.ClientChannel, input.ClientToken));
 
-            // Use a more descriptive variable name if possible
             var semaphoreSlim = await _nlpPolicyAppService.GetMessageSendQuotaSemaphoreSlim(chatbot.TenantId);
 
-            // Rename InferenctSlime to something descriptive like TryDecrementQuota or similar
-            DecrementQuota(semaphoreSlim); // Assuming this is the intended action
+            InferenctSlime(semaphoreSlim);
 
             try
             {
-                // Use ConfigureAwait(false) if context synchronization is not needed after await
-                if (!await semaphoreSlim.WaitAsync(_SemaphoreSlimWaitTimeOut).ConfigureAwait(false))
-                {
-                    Logger.Warn($"Semaphore timeout for TenantId: {chatbot.TenantId} in {nameof(ReceiveClientSignalRMessage)}.");
-                    return; // Timeout occurred
-                }
+                if ((await semaphoreSlim.WaitAsync(_SemaphoreSlimWaitTimeOut)) == false)
+                    return;
 
-                // Set defaults concisely
+                //取得Chatbot回覆
                 input.MessageType ??= "text";
                 input.SenderTime ??= Clock.Now;
-                // Avoid setting SenderRole if it's already set? Check logic.
                 if (string.IsNullOrEmpty(input.SenderRole))
-                    input.SenderRole = "client"; // Assuming SignalR messages are always from client initially
+                    input.SenderRole = "chatbot";
+                var nlpCbMessageExList = await ProcessReceiveMessage(input);
 
-                var nlpCbMessageExList = await ProcessReceiveMessage(input).ConfigureAwait(false);
+                var chatroomStatus = await GetChatroomStatus(input.ChatbotId.Value, input.ClientId.Value);
+                if (chatroomStatus != null)
+                {
+                    if ((input.ConnectionProtocol.IsNullOrEmpty() == false && chatroomStatus.ConnectionProtocol != input.ConnectionProtocol) ||
+                        (input.ClientChannel.IsNullOrEmpty() == false && chatroomStatus.ClientChannel != input.ClientChannel) ||
+                        (input.ClientIP.IsNullOrEmpty() == false && chatroomStatus.ClientIP != input.ClientIP))
+                    {
+                        if (input.ConnectionProtocol.IsNullOrEmpty() == false && chatroomStatus.ConnectionProtocol != input.ConnectionProtocol)
+                            chatroomStatus.ConnectionProtocol = input.ConnectionProtocol;
 
-                // Refactor common post-processing logic
-                await PostProcessClientMessage(input, chatbot, nlpCbMessageExList, true).ConfigureAwait(false);
+                        if (input.ClientChannel.IsNullOrEmpty() == false && chatroomStatus.ClientChannel != input.ClientChannel)
+                            chatroomStatus.ClientChannel = input.ClientChannel;
 
+                        if (input.ClientIP.IsNullOrEmpty() == false && chatroomStatus.ClientIP != input.ClientIP)
+                            chatroomStatus.ClientIP = input.ClientIP;
+
+                        UpdateChatroomStatusCache(input.ChatbotId.Value, input.ClientId.Value, chatroomStatus);
+                    }
+
+                    SendChatroomStatusToAgents(chatbot.TenantId, chatroomStatus);
+                }
+
+                //傳送未讀的Message至Agents跟Client
+                IList<ChatbotMessageManagerMessageDto> messages = await GetNlpCbMessageFromDatabase(chatbot.Id, chatroomStatus.ClientId, 1, true);
+
+                await SendAgesntsClientNonReadMessage(chatbot.Id, input.ClientId.Value, messages, true);
+
+                if (nlpCbMessageExList != null)
+                {
+                    foreach (var nlpCbMessageEx in nlpCbMessageExList)
+                    {
+                        if (nlpCbMessageEx != null && nlpCbMessageEx.SuggestedAnswers != null && nlpCbMessageEx.SuggestedAnswers.Count > 0)
+                        {
+                            var output = input;
+                            output.ReceiverRole = "agent";
+                            output.SenderRole = "chatbot";
+                            output.Message = "";
+                            output.SuggestedAnswers = JsonConvert.SerializeObject(nlpCbMessageEx.SuggestedAnswers);
+                            output.AgentId ??= chatroomStatus.ChatroomAgents[0].AgentId;
+
+                            var messageList = new List<ChatbotMessageManagerMessageDto>();
+                            messageList.Add(output);
+
+                            await SendAgesntsSuggestedAnswers(input.ChatbotId.Value, input.ClientId.Value, messageList);
+                        }
+                    }
+                }
+
+                if (_deferredSendMessageToChatroomAgent != null)
+                    await SendAgesntsSuggestedAnswers(input.ChatbotId.Value, input.ClientId.Value, _deferredSendMessageToChatroomAgent);
             }
             finally
             {
-                // Ensure Release is always called if WaitAsync succeeded, even if an exception occurred before return
-                // The current structure is generally correct, but double-check complex scenarios.
                 try
                 {
                     semaphoreSlim?.Release();
                 }
-                catch (ObjectDisposedException)
+                catch (Exception)
                 {
-                    // Handle or log if the semaphore might be disposed unexpectedly
-                    Logger.Warn("Attempted to release a disposed semaphore.");
-                }
-                catch (SemaphoreFullException)
-                {
-                    // This shouldn't happen if WaitAsync was called correctly, but log if it does
-                    Logger.Error("Attempted to release semaphore more times than it was waited on.");
                 }
             }
 
-            //_lpCbWebApiClient.PrepareQueryPython(); // Commented out, remove if unused
+            //_lpCbWebApiClient.PrepareQueryPython();
         }
 
         [DisableAuditing]
         public async Task<IList<ChatbotMessageManagerMessageDto>> ReceiveClientHttpMessage(ChatbotMessageManagerMessageDto input)
         {
-            // Validate input early
-            if (input?.ChatbotId == null || input.ClientId == null)
-            {
-                Logger.Warn($"Received invalid input in {nameof(ReceiveClientHttpMessage)}.");
-                return new List<ChatbotMessageManagerMessageDto>(); // Return empty list on invalid input
-            }
-
             List<NlpCbMessageEx> nlpCbMessageExList = null;
             SemaphoreSlim semaphoreSlim = null;
 
-            //_lpCbWebApiClient.PrepareQueryPython(); // Commented out, remove if unused
+            //_lpCbWebApiClient.PrepareQueryPython();
 
             try
             {
                 var chatbot = _nlpChatbotFunction.GetChatbotDto(input.ChatbotId.Value);
                 if (chatbot == null)
-                {
-                    // Consistent exception message
-                    throw new UserFriendlyException(ChatErrorCode.Error_InvalidChatbotId, $"{nameof(input.ChatbotId)} should be a valid guid.");
-                }
+                    throw new UserFriendlyException(ChatErrorCode.Error_InvalidChatbotId, "ChatbotId should be a valid guid.");
 
-                // Distinguish between Get and Send quota semaphores if necessary
                 semaphoreSlim = await _nlpPolicyAppService.Get_GetMessageQuotaSemaphoreSlim(chatbot.TenantId);
 
-                DecrementQuota(semaphoreSlim); // Rename method
+                InferenctSlime(semaphoreSlim);
 
-                if (!await semaphoreSlim.WaitAsync(_SemaphoreSlimWaitTimeOut).ConfigureAwait(false))
-                {
-                    Logger.Warn($"Semaphore timeout for TenantId: {chatbot.TenantId} in {nameof(ReceiveClientHttpMessage)}.");
-                    return new List<ChatbotMessageManagerMessageDto>(); // Return empty list on timeout
-                }
+                if ((await semaphoreSlim.WaitAsync(_SemaphoreSlimWaitTimeOut)) == false)
+                    return new List<ChatbotMessageManagerMessageDto>();
 
-                // Set defaults
+
+                //取得Chatbot回覆
                 input.MessageType ??= "text";
                 input.SenderTime ??= Clock.Now;
-                input.SenderRole = "client"; // HTTP messages are assumed from client
+                input.SenderRole = "client";
 
-                nlpCbMessageExList = await ProcessReceiveMessage(input).ConfigureAwait(false);
+                nlpCbMessageExList = await ProcessReceiveMessage(input);
 
-                // Refactor common post-processing logic
-                var chatroomStatus = await PostProcessClientMessage(input, chatbot, nlpCbMessageExList, false).ConfigureAwait(false);
+                if (input.ConnectionProtocol.IsNullOrEmpty() == false)
+                    await SetNlpClientInfoDtosCache(new NlpClientInfoDto(chatbot.TenantId, input.ClientId.Value, input.ConnectionProtocol, input.ClientIP, input.ClientChannel, input.ClientToken));
 
-                // --- HTTP Specific Post-Processing ---
+                var chatroomStatus = await GetChatroomStatus(input.ChatbotId.Value, input.ClientId.Value);
+                if (chatroomStatus != null)
+                {
+                    if ((input.ConnectionProtocol.IsNullOrEmpty() == false && chatroomStatus.ConnectionProtocol != input.ConnectionProtocol) ||
+                        (input.ClientChannel.IsNullOrEmpty() == false && chatroomStatus.ClientChannel != input.ClientChannel) ||
+                        (input.ClientIP.IsNullOrEmpty() == false && chatroomStatus.ClientIP != input.ClientIP))
+                    {
+                        if (input.ConnectionProtocol.IsNullOrEmpty() == false && chatroomStatus.ConnectionProtocol != input.ConnectionProtocol)
+                            chatroomStatus.ConnectionProtocol = input.ConnectionProtocol;
 
-                // Fetch messages again? This seems redundant if PostProcessClientMessage already fetched them.
-                // If GetNlpCbMessageFromDatabase is needed *after* ProcessReceiveMessage, keep it. Otherwise, optimize.
-                // Assuming messages are needed again here for HTTP response formatting.
-                IList<ChatbotMessageManagerMessageDto> messages = await GetNlpCbMessageFromDatabase(chatbot.Id, chatroomStatus.ClientId, 1, true).ConfigureAwait(false);
+                        if (input.ClientChannel.IsNullOrEmpty() == false && chatroomStatus.ClientChannel != input.ClientChannel)
+                            chatroomStatus.ClientChannel = input.ClientChannel;
 
-                // Mark messages as read for HTTP request
-                if (input.ChatbotId != null && input.ClientId != null) // Redundant check? Already validated.
+                        if (input.ClientIP.IsNullOrEmpty() == false && chatroomStatus.ClientIP != input.ClientIP)
+                            chatroomStatus.ClientIP = input.ClientIP;
+
+                        UpdateChatroomStatusCache(input.ChatbotId.Value, input.ClientId.Value, chatroomStatus);
+                    }
+
+                    SendChatroomStatusToAgents(chatbot.TenantId, chatroomStatus);
+                }
+
+                //傳送未讀的Message至Agents跟Client
+                IList<ChatbotMessageManagerMessageDto> messages = await GetNlpCbMessageFromDatabase(chatbot.Id, chatroomStatus.ClientId, 1, true);
+
+                await SendAgesntsClientNonReadMessage(chatbot.Id, input.ClientId.Value, messages, false);
+
+                if (nlpCbMessageExList != null)
+                {
+                    foreach (var nlpCbMessageEx in nlpCbMessageExList)
+                    {
+                        if (nlpCbMessageEx != null && nlpCbMessageEx.SuggestedAnswers != null && nlpCbMessageEx.SuggestedAnswers.Count > 0)
+                        {
+                            var output = input;
+                            output.ReceiverRole = "agent";
+                            output.SenderRole = "chatbot";
+                            output.Message = "";
+                            output.SuggestedAnswers = JsonConvert.SerializeObject(nlpCbMessageEx.SuggestedAnswers);
+                            output.AgentId ??= chatroomStatus.ChatroomAgents[0].AgentId;
+
+
+                            var messageList = new List<ChatbotMessageManagerMessageDto>();
+                            messageList.Add(output);
+
+                            await SendAgesntsSuggestedAnswers(input.ChatbotId.Value, input.ClientId.Value, messageList);
+                        }
+                    }
+                }
+
+                //設為已讀
+                if (input.ChatbotId != null && input.ClientId != null)
                 {
                     DateTime dt30 = Clock.Now.AddDays(-30);
-                    // Use ConfigureAwait(false) for background operations
+
                     await _nlpCbMessageRepository.BatchUpdateAsync(
                         e => new NlpCbMessage { AlternativeQuestion = null, ClientReadTime = Clock.Now },
-                        e => e.NlpChatbotId == input.ChatbotId.Value && e.ClientId == input.ClientId && e.NlpCreationTime > dt30 && (e.ClientReadTime == null || e.AlternativeQuestion != null))
-                        .ConfigureAwait(false);
+                        e => e.NlpChatbotId == input.ChatbotId.Value && e.ClientId == input.ClientId && e.NlpCreationTime > dt30 && (e.ClientReadTime == null || e.AlternativeQuestion != null));
                 }
 
-                // Filter messages for the client response
                 var clientMessages = messages.Where(e => e.ClientReadTime == null && e.ReceiverRole == "client").ToList();
 
-                // Add additional info to response messages
                 foreach (var message in clientMessages)
-                {
                     message.FailedCount = chatroomStatus.IncorrectAnswerCount;
-                }
 
                 if (chatroomStatus.WfState != Guid.Empty)
                 {
-                    var workflowStatus = await GetNlpWorkflowStateInfo(chatroomStatus.WfState).ConfigureAwait(false);
+                    var workflowStatus = await GetNlpWorkflowStateInfo(chatroomStatus.WfState);
                     if (workflowStatus != null)
                     {
                         foreach (var message in clientMessages)
@@ -310,17 +347,118 @@ namespace AIaaS.Chatbot
 
                 return clientMessages;
             }
-            catch (UserFriendlyException ex) // Catch specific exceptions if needed
+            finally
             {
-                Logger.Error($"UserFriendlyException in {nameof(ReceiveClientHttpMessage)}: {ex.Message}", ex);
-                throw; // Re-throw UserFriendlyExceptions
+                try
+                {
+                    semaphoreSlim?.Release();
+                }
+                catch (Exception)
+                {
+                }
+
             }
-            catch (Exception ex) // Catch broader exceptions
+        }
+
+        [DisableAuditing]
+        public async Task<IList<ChatbotMessageManagerMessageDto>> ReceiveClientLineMessage(ChatbotMessageManagerMessageDto input)
+        {
+            List<NlpCbMessageEx> nlpCbMessageExList = null;
+            SemaphoreSlim semaphoreSlim = null;
+
+            //_lpCbWebApiClient.PrepareQueryPython();
+
+            try
             {
-                Logger.Error($"An error occurred in {nameof(ReceiveClientHttpMessage)}.", ex);
-                // Consider returning a specific error response DTO instead of an empty list or re-throwing
-                // For now, return empty list as per original logic's tendency on failure
-                return new List<ChatbotMessageManagerMessageDto>();
+                //傳送ChatroomStatus至Agents
+                var chatbot = _nlpChatbotFunction.GetChatbotDto(input.ChatbotId.Value);
+                if (chatbot == null)
+                    throw new UserFriendlyException(ChatErrorCode.Error_InvalidChatbotId, "ChatbotId should be a valid guid.");
+
+                semaphoreSlim = await _nlpPolicyAppService.GetMessageSendQuotaSemaphoreSlim(chatbot.TenantId);
+
+                InferenctSlime(semaphoreSlim);
+
+                if ((await semaphoreSlim.WaitAsync(_SemaphoreSlimWaitTimeOut)) == false)
+                    return new List<ChatbotMessageManagerMessageDto>();
+
+                //if (await _nlpPolicy.IsExceedingMaxAnswerSendCount(chatbot.TenantId))
+                //    return null;
+
+                //取得Chatbot回覆
+                input.MessageType ??= "text";
+                input.SenderTime ??= Clock.Now;
+                input.SenderRole = "client";
+                input.ConnectionProtocol = "line";
+                input.ClientChannel = "line";
+
+                nlpCbMessageExList = await ProcessReceiveMessage(input);
+
+                if (input.ConnectionProtocol.IsNullOrEmpty() == false)
+                {
+                    await SetNlpClientInfoDtosCache(new NlpClientInfoDto()
+                    {
+                        TenantId = chatbot.TenantId,
+                        ClientId = input.ClientId.Value,
+                        ConnectionProtocol = input.ConnectionProtocol,
+                        ClientChannel = input.ClientChannel,
+                        UpdatedTime = Clock.Now,
+                    });
+                }
+
+                var lineUser = _nlpLineUsersAppService.GetNlpLineUserDto(input.ClientId.Value);
+
+                var chatroomStatus = await GetChatroomStatus(input.ChatbotId.Value, input.ClientId.Value);
+                if (chatroomStatus != null)
+                {
+                    if ((input.ConnectionProtocol.IsNullOrEmpty() == false && chatroomStatus.ConnectionProtocol != input.ConnectionProtocol) ||
+                        (input.ClientChannel.IsNullOrEmpty() == false && chatroomStatus.ClientChannel != input.ClientChannel) ||
+                        (input.ClientIP.IsNullOrEmpty() == false && chatroomStatus.ClientIP != input.ClientIP))
+                    {
+                        if (input.ConnectionProtocol.IsNullOrEmpty() == false && chatroomStatus.ConnectionProtocol != input.ConnectionProtocol)
+                            chatroomStatus.ConnectionProtocol = input.ConnectionProtocol;
+
+                        if (input.ClientChannel.IsNullOrEmpty() == false && chatroomStatus.ClientChannel != input.ClientChannel)
+                            chatroomStatus.ClientChannel = input.ClientChannel;
+
+                        if (input.ClientIP.IsNullOrEmpty() == false && chatroomStatus.ClientIP != input.ClientIP)
+                            chatroomStatus.ClientIP = input.ClientIP;
+
+                        UpdateChatroomStatusCache(input.ChatbotId.Value, input.ClientId.Value, chatroomStatus);
+                    }
+
+                    SendChatroomStatusToAgents(chatbot.TenantId, chatroomStatus);
+                }
+
+                //傳送未讀的Message至Agents跟Client
+                IList<ChatbotMessageManagerMessageDto> messages = await GetNlpCbMessageFromDatabase(chatbot.Id, chatroomStatus.ClientId, 1, true);
+
+                await SendAgesntsClientNonReadMessage(chatbot.Id, input.ClientId.Value, messages, false);
+
+                if (nlpCbMessageExList != null)
+                {
+                    foreach (var nlpCbMessageEx in nlpCbMessageExList)
+                    {
+                        if (nlpCbMessageEx != null && nlpCbMessageEx.SuggestedAnswers != null && nlpCbMessageEx.SuggestedAnswers.Count > 0)
+                        {
+                            var output = input;
+                            output.ReceiverRole = "agent";
+                            output.SenderRole = "chatbot";
+                            output.Message = "";
+                            output.SuggestedAnswers = JsonConvert.SerializeObject(nlpCbMessageEx.SuggestedAnswers);
+                            output.AgentId ??= chatroomStatus.ChatroomAgents[0].AgentId;
+
+                            var messageList = new List<ChatbotMessageManagerMessageDto>();
+                            messageList.Add(output);
+
+                            await SendAgesntsSuggestedAnswers(input.ChatbotId.Value, input.ClientId.Value, messageList);
+                        }
+                    }
+                }
+
+                var clientMessages = messages.Where(e => e.ClientReadTime == null && e.ReceiverRole == "client").ToList();
+
+                return clientMessages;
             }
             finally
             {
@@ -328,359 +466,175 @@ namespace AIaaS.Chatbot
                 {
                     semaphoreSlim?.Release();
                 }
-                catch (ObjectDisposedException)
+                catch (Exception)
                 {
-                    Logger.Warn("Attempted to release a disposed semaphore.");
-                }
-                 catch (SemaphoreFullException)
-                {
-                    Logger.Error("Attempted to release semaphore more times than it was waited on.");
-                }
-            }
-        }
-
-        /// <summary>
-        /// Common logic after processing a client message (SignalR, HTTP, Line, FB).
-        /// </summary>
-        /// <returns>The updated NlpChatroomStatus.</returns>
-        private async Task<NlpChatroomStatus> PostProcessClientMessage(
-            ChatbotMessageManagerMessageDto input,
-            NlpChatbotDto chatbot,
-            List<NlpCbMessageEx> nlpCbMessageExList,
-            bool sendToClient)
-        {
-            // Update Client Info Cache
-            if (!string.IsNullOrEmpty(input.ConnectionProtocol))
-            {
-                var clientInfo = new NlpClientInfoDto(chatbot.TenantId, input.ClientId.Value, input.ConnectionProtocol, input.ClientIP, input.ClientChannel, input.ClientToken);
-                await SetNlpClientInfoDtosCache(clientInfo).ConfigureAwait(false);
-            }
-
-            // Get and Update Chatroom Status
-            var chatroomStatus = await GetChatroomStatus(input.ChatbotId.Value, input.ClientId.Value).ConfigureAwait(false);
-            if (chatroomStatus != null) // Ensure chatroomStatus is not null
-            {
-                bool statusChanged = false;
-                if (!string.IsNullOrEmpty(input.ConnectionProtocol) && chatroomStatus.ConnectionProtocol != input.ConnectionProtocol)
-                {
-                    chatroomStatus.ConnectionProtocol = input.ConnectionProtocol;
-                    statusChanged = true;
-                }
-                if (!string.IsNullOrEmpty(input.ClientChannel) && chatroomStatus.ClientChannel != input.ClientChannel)
-                {
-                    chatroomStatus.ClientChannel = input.ClientChannel;
-                    statusChanged = true;
-                }
-                if (!string.IsNullOrEmpty(input.ClientIP) && chatroomStatus.ClientIP != input.ClientIP)
-                {
-                    chatroomStatus.ClientIP = input.ClientIP;
-                    statusChanged = true;
                 }
 
-                if (statusChanged)
-                {
-                    UpdateChatroomStatusCache(input.ChatbotId.Value, input.ClientId.Value, chatroomStatus); // This method seems synchronous, confirm if await is needed
-                }
-
-                // Send status update to agents regardless of change? Check requirement.
-                SendChatroomStatusToAgents(chatbot.TenantId, chatroomStatus); // This method seems synchronous, confirm if await is needed
-            }
-            else
-            {
-                // Handle case where chatroomStatus is unexpectedly null
-                Logger.Error($"ChatroomStatus is null for ChatbotId: {input.ChatbotId}, ClientId: {input.ClientId} in PostProcessClientMessage.");
-                // Depending on requirements, might need to create a default status or throw
-                // For now, create a minimal status to avoid null reference errors later
-                 chatroomStatus = new NlpChatroomStatus { ChatbotId = input.ChatbotId.Value, ClientId = input.ClientId.Value };
-                 // Consider logging this creation or handling it more robustly
-            }
-
-
-            // Send Unread Messages
-            // Consider optimizing: Can GetNlpCbMessageFromDatabase return only necessary fields?
-            IList<ChatbotMessageManagerMessageDto> messages = await GetNlpCbMessageFromDatabase(chatbot.Id, chatroomStatus.ClientId, 1, true).ConfigureAwait(false);
-            await SendAgesntsClientNonReadMessage(chatbot.Id, input.ClientId.Value, messages, sendToClient).ConfigureAwait(false);
-
-            // Handle Suggested Answers
-            if (nlpCbMessageExList != null)
-            {
-                var messagesToSend = new List<ChatbotMessageManagerMessageDto>();
-                foreach (var nlpCbMessageEx in nlpCbMessageExList)
-                {
-                    if (nlpCbMessageEx?.SuggestedAnswers?.Count > 0)
-                    {
-                        // Avoid modifying the original 'input' DTO directly if it's reused. Create a new DTO.
-                        var output = new ChatbotMessageManagerMessageDto
-                        {
-                            // Copy necessary properties from input
-                            ChatbotId = input.ChatbotId,
-                            ClientId = input.ClientId,
-                            TenantId = chatbot.TenantId, // Assuming TenantId is needed
-                            // Set specific properties for suggestion
-                            ReceiverRole = "agent",
-                            SenderRole = "chatbot",
-                            Message = "", // No primary message for suggestions
-                            SuggestedAnswers = JsonConvert.SerializeObject(nlpCbMessageEx.SuggestedAnswers),
-                            // Determine AgentId safely
-                            AgentId = chatroomStatus?.ChatroomAgents?.FirstOrDefault()?.AgentId // Use ?. for safe navigation
-                            // Copy other relevant fields if needed: SenderTime, MessageType?
-                        };
-                        messagesToSend.Add(output);
-                    }
-                }
-                if (messagesToSend.Any())
-                {
-                    await SendAgesntsSuggestedAnswers(input.ChatbotId.Value, input.ClientId.Value, messagesToSend).ConfigureAwait(false);
-                }
-            }
-
-            // Handle Deferred Messages (Consider thread-safety if _deferredSendMessageToChatroomAgent is shared)
-            if (_deferredSendMessageToChatroomAgent != null && _deferredSendMessageToChatroomAgent.Any())
-            {
-                // Create a copy to avoid modification issues if processing takes time or is concurrent
-                var deferredMessages = _deferredSendMessageToChatroomAgent.ToList();
-                _deferredSendMessageToChatroomAgent.Clear(); // Clear original list immediately
-                await SendAgesntsSuggestedAnswers(input.ChatbotId.Value, input.ClientId.Value, deferredMessages).ConfigureAwait(false);
-            }
-
-            return chatroomStatus;
-        }
-
-
-        [DisableAuditing]
-        public async Task<IList<ChatbotMessageManagerMessageDto>> ReceiveClientLineMessage(ChatbotMessageManagerMessageDto input)
-        {
-            // Validate input
-             if (input?.ChatbotId == null || input.ClientId == null)
-            {
-                Logger.Warn($"Received invalid input in {nameof(ReceiveClientLineMessage)}.");
-                return new List<ChatbotMessageManagerMessageDto>();
-            }
-
-            List<NlpCbMessageEx> nlpCbMessageExList = null;
-            SemaphoreSlim semaphoreSlim = null;
-
-            try
-            {
-                var chatbot = _nlpChatbotFunction.GetChatbotDto(input.ChatbotId.Value);
-                if (chatbot == null)
-                {
-                    throw new UserFriendlyException(ChatErrorCode.Error_InvalidChatbotId, $"{nameof(input.ChatbotId)} should be a valid guid.");
-                }
-
-                semaphoreSlim = await _nlpPolicyAppService.GetMessageSendQuotaSemaphoreSlim(chatbot.TenantId);
-                DecrementQuota(semaphoreSlim); // Rename method
-
-                if (!await semaphoreSlim.WaitAsync(_SemaphoreSlimWaitTimeOut).ConfigureAwait(false))
-                {
-                     Logger.Warn($"Semaphore timeout for TenantId: {chatbot.TenantId} in {nameof(ReceiveClientLineMessage)}.");
-                    return new List<ChatbotMessageManagerMessageDto>();
-                }
-
-                // Set defaults for Line
-                input.MessageType ??= "text";
-                input.SenderTime ??= Clock.Now;
-                input.SenderRole = "client";
-                input.ConnectionProtocol = "line"; // Explicitly set for Line
-                input.ClientChannel = "line";    // Explicitly set for Line
-
-                nlpCbMessageExList = await ProcessReceiveMessage(input).ConfigureAwait(false);
-
-                // Use common post-processing
-                var chatroomStatus = await PostProcessClientMessage(input, chatbot, nlpCbMessageExList, false).ConfigureAwait(false); // sendToClient = false for Line? Check logic.
-
-                // --- Line Specific Post-Processing ---
-                // Fetch messages again for the response format needed by Line controller
-                 IList<ChatbotMessageManagerMessageDto> messages = await GetNlpCbMessageFromDatabase(chatbot.Id, chatroomStatus.ClientId, 1, true).ConfigureAwait(false);
-                 var clientMessages = messages.Where(e => e.ClientReadTime == null && e.ReceiverRole == "client").ToList();
-
-                // Potentially add Line-specific formatting or data here if needed
-
-                return clientMessages;
-            }
-             catch (UserFriendlyException ex)
-            {
-                Logger.Error($"UserFriendlyException in {nameof(ReceiveClientLineMessage)}: {ex.Message}", ex);
-                throw;
-            }
-            catch (Exception ex)
-            {
-                Logger.Error($"An error occurred in {nameof(ReceiveClientLineMessage)}.", ex);
-                return new List<ChatbotMessageManagerMessageDto>(); // Return empty list on error
-            }
-            finally
-            {
-                 try
-                {
-                    semaphoreSlim?.Release();
-                }
-                catch (ObjectDisposedException) { Logger.Warn("Attempted to release a disposed semaphore."); }
-                catch (SemaphoreFullException) { Logger.Error("Attempted to release semaphore too many times."); }
             }
         }
 
         [DisableAuditing]
         public async Task ReceiveClientFacebookMessage(ChatbotMessageManagerMessageDto input)
         {
-             // Validate input
-             if (input?.ChatbotId == null || input.ClientId == null)
-            {
-                Logger.Warn($"Received invalid input in {nameof(ReceiveClientFacebookMessage)}.");
-                // Facebook might expect a specific response on error, adjust if needed
-                return; // Or throw? Check FB API requirements.
-            }
-
             List<NlpCbMessageEx> nlpCbMessageExList = null;
             SemaphoreSlim semaphoreSlim = null;
 
+            //_lpCbWebApiClient.PrepareQueryPython();
+
             try
             {
+                //傳送ChatroomStatus至Agents
                 var chatbot = _nlpChatbotFunction.GetChatbotDto(input.ChatbotId.Value);
                 if (chatbot == null)
-                {
-                    throw new UserFriendlyException(ChatErrorCode.Error_InvalidChatbotId, $"{nameof(input.ChatbotId)} should be a valid guid.");
-                }
+                    throw new UserFriendlyException(ChatErrorCode.Error_InvalidChatbotId, "ChatbotId should be a valid guid.");
 
+                //if (await _nlpPolicy.IsExceedingMaxAnswerSendCount(chatbot.TenantId))
+                //    return;
                 semaphoreSlim = await _nlpPolicyAppService.GetMessageSendQuotaSemaphoreSlim(chatbot.TenantId);
-                 DecrementQuota(semaphoreSlim); // Rename method
 
-                if (!await semaphoreSlim.WaitAsync(_SemaphoreSlimWaitTimeOut).ConfigureAwait(false))
-                {
-                    Logger.Warn($"Semaphore timeout for TenantId: {chatbot.TenantId} in {nameof(ReceiveClientFacebookMessage)}.");
-                    return; // Or throw? Check FB API requirements.
-                }
+                InferenctSlime(semaphoreSlim);
 
-                // Set defaults for Facebook
+                if ((await semaphoreSlim.WaitAsync(_SemaphoreSlimWaitTimeOut)) == false)
+                    return;
+
+                //取得Chatbot回覆
                 input.MessageType ??= "text";
                 input.SenderTime ??= Clock.Now;
                 input.SenderRole = "client";
-                input.ConnectionProtocol = "facebook"; // Explicitly set for Facebook
-                input.ClientChannel = "facebook";    // Explicitly set for Facebook
+                input.ConnectionProtocol = "facebook";
+                input.ClientChannel = "facebook";
 
-                nlpCbMessageExList = await ProcessReceiveMessage(input).ConfigureAwait(false);
+                nlpCbMessageExList = await ProcessReceiveMessage(input);
 
-                // Use common post-processing
-                var chatroomStatus = await PostProcessClientMessage(input, chatbot, nlpCbMessageExList, true).ConfigureAwait(false); // sendToClient = true for FB? Check logic.
-
-                // --- Facebook Specific Post-Processing ---
-                // Fetch messages again for potential alternative questions
-                 IList<ChatbotMessageManagerMessageDto> messages = await GetNlpCbMessageFromDatabase(chatbot.Id, chatroomStatus.ClientId, 1, true).ConfigureAwait(false);
-                 var clientMessages = messages.Where(e => e.ClientReadTime == null && e.ReceiverRole == "client").ToList();
-
-                // Send alternative questions as buttons
-                foreach (var message in clientMessages)
+                if (input.ConnectionProtocol.IsNullOrEmpty() == false)
                 {
-                    if (!string.IsNullOrEmpty(message.AlternativeQuestion))
+                    await SetNlpClientInfoDtosCache(new NlpClientInfoDto()
                     {
-                        try
-                        {
-                            var questions = JsonConvert.DeserializeObject<string[]>(message.AlternativeQuestion);
-                            if (questions != null && questions.Any())
-                            {
-                                var listButtons = questions
-                                    .Select(q => new PostbackButton { Title = q, Payload = q })
-                                    .Cast<Button>() // Cast to base Button type
-                                    .ToList();
+                        TenantId = chatbot.TenantId,
+                        ClientId = input.ClientId.Value,
+                        ConnectionProtocol = input.ConnectionProtocol,
+                        ClientChannel = input.ClientChannel,
+                        UpdatedTime = Clock.Now,
+                    });
+                }
 
-                                // Ensure AlternativeQuestion text is available on the chatbot DTO
-                                var buttonText = chatbot.AlternativeQuestion ?? "Please choose an option:"; // Provide a default
-                                var attachmentMessage = new AttachmentMessage
-                                {
-                                    Attachment = new ButtonTemplateAttachment(buttonText, listButtons)
-                                };
+                var lineUser = _nlpLineUsersAppService.GetNlpLineUserDto(input.ClientId.Value);
 
-                                // Initialize ClientMessenger safely (consider dependency injection or factory)
-                                _clientMessenger ??= new ClientMessenger(chatbot.FacebookAccessToken, chatbot.FacebookSecretKey);
+                var chatroomStatus = await GetChatroomStatus(input.ChatbotId.Value, input.ClientId.Value);
+                if (chatroomStatus != null)
+                {
+                    if ((input.ConnectionProtocol.IsNullOrEmpty() == false && chatroomStatus.ConnectionProtocol != input.ConnectionProtocol) ||
+                        (input.ClientChannel.IsNullOrEmpty() == false && chatroomStatus.ClientChannel != input.ClientChannel) ||
+                        (input.ClientIP.IsNullOrEmpty() == false && chatroomStatus.ClientIP != input.ClientIP))
+                    {
+                        if (input.ConnectionProtocol.IsNullOrEmpty() == false && chatroomStatus.ConnectionProtocol != input.ConnectionProtocol)
+                            chatroomStatus.ConnectionProtocol = input.ConnectionProtocol;
 
-                                var facebookUser = _nlpFacebookUsersAppService.GetNlpFacebookUserDto(message.ClientId.Value);
-                                if (facebookUser != null && !string.IsNullOrEmpty(facebookUser.UserId))
-                                {
-                                    //var package = await _clientMessenger.GetJSONRenderedAsync(facebookUser.UserId, attachmentMessage); // If needed for debugging
-                                    var result = await _clientMessenger.SendMessageAsync(facebookUser.UserId, attachmentMessage).ConfigureAwait(false);
-                                    // Log result or handle errors from FB API
-                                }
-                                else
-                                {
-                                     Logger.Warn($"Facebook user not found or UserId missing for ClientId: {message.ClientId}");
-                                }
-                            }
-                        }
-                        catch (JsonException jsonEx)
+                        if (input.ClientChannel.IsNullOrEmpty() == false && chatroomStatus.ClientChannel != input.ClientChannel)
+                            chatroomStatus.ClientChannel = input.ClientChannel;
+
+                        if (input.ClientIP.IsNullOrEmpty() == false && chatroomStatus.ClientIP != input.ClientIP)
+                            chatroomStatus.ClientIP = input.ClientIP;
+
+                        UpdateChatroomStatusCache(input.ChatbotId.Value, input.ClientId.Value, chatroomStatus);
+                    }
+
+                    SendChatroomStatusToAgents(chatbot.TenantId, chatroomStatus);
+                }
+
+                //傳送未讀的Message至Agents跟Client
+                IList<ChatbotMessageManagerMessageDto> messages = await GetNlpCbMessageFromDatabase(chatbot.Id, chatroomStatus.ClientId, 1, true);
+
+                var clientMessages = messages.Where(e => e.ClientReadTime == null && e.ReceiverRole == "client").ToList();
+                await SendAgesntsClientNonReadMessage(chatbot.Id, input.ClientId.Value, clientMessages, true);
+
+                if (nlpCbMessageExList != null)
+                {
+                    foreach (var nlpCbMessageEx in nlpCbMessageExList)
+                    {
+                        if (nlpCbMessageEx != null && nlpCbMessageEx.SuggestedAnswers != null && nlpCbMessageEx.SuggestedAnswers.Count > 0)
                         {
-                             Logger.Error($"Failed to deserialize AlternativeQuestion for message {message.Id}: {jsonEx.Message}", jsonEx);
-                        }
-                        catch (Exception ex) // Catch potential errors during FB message sending
-                        {
-                            Logger.Error($"Failed to send Facebook alternative question buttons for message {message.Id}: {ex.Message}", ex);
+                            var output = input;
+                            output.ReceiverRole = "agent";
+                            output.SenderRole = "chatbot";
+                            output.Message = "";
+                            output.SuggestedAnswers = JsonConvert.SerializeObject(nlpCbMessageEx.SuggestedAnswers);
+                            output.AgentId ??= chatroomStatus.ChatroomAgents[0].AgentId;
+
+                            var messageList = new List<ChatbotMessageManagerMessageDto>();
+                            messageList.Add(output);
+
+                            await SendAgesntsSuggestedAnswers(input.ChatbotId.Value, input.ClientId.Value, messageList);
                         }
                     }
                 }
-                 // Facebook controller likely handles the actual response to FB, this method might not need to return messages.
-            }
-             catch (UserFriendlyException ex)
-            {
-                Logger.Error($"UserFriendlyException in {nameof(ReceiveClientFacebookMessage)}: {ex.Message}", ex);
-                throw; // Re-throw to be handled by the caller (e.g., webhook controller)
-            }
-            catch (Exception ex)
-            {
-                Logger.Error($"An error occurred in {nameof(ReceiveClientFacebookMessage)}.", ex);
-                 // Consider how errors should be reported back to Facebook if possible
-                throw; // Re-throw for global error handling
+
+                foreach (var message in clientMessages)
+                {
+                    if (message.AlternativeQuestion.IsNullOrEmpty() == false)
+                    {
+                        List<ReflectSoftware.Facebook.Messenger.Common.Models.Button> listButtons = null;
+
+                        var questions = JsonConvert.DeserializeObject<string[]>(message.AlternativeQuestion);
+                        foreach (var question in questions)
+                        {
+                            listButtons ??= new List<ReflectSoftware.Facebook.Messenger.Common.Models.Button>();
+                            listButtons.Add(new PostbackButton()
+                            {
+                                Title = question,
+                                Payload = question
+                            });
+                        }
+
+                        //var text = "Hey there welcome to Hubster! How can we help you today?";
+                        var attachmentMessage = new AttachmentMessage
+                        {
+                            Attachment = new ButtonTemplateAttachment(chatbot.AlternativeQuestion, listButtons)
+                        };
+
+                        _clientMessenger ??= new ClientMessenger(chatbot.FacebookAccessToken, chatbot.FacebookSecretKey);
+
+                        var facebookUser = _nlpFacebookUsersAppService.GetNlpFacebookUserDto(message.ClientId.Value);
+                        var package = await _clientMessenger.GetJSONRenderedAsync(facebookUser.UserId, attachmentMessage);
+                        var result = await _clientMessenger.SendMessageAsync(facebookUser.UserId, attachmentMessage);
+                    }
+                }
             }
             finally
             {
-                 try
+                try
                 {
                     semaphoreSlim?.Release();
                 }
-                catch (ObjectDisposedException) { Logger.Warn("Attempted to release a disposed semaphore."); }
-                catch (SemaphoreFullException) { Logger.Error("Attempted to release semaphore too many times."); }
+                catch (Exception)
+                {
+                }
+
             }
+
+            //_lpCbWebApiClient.PrepareQueryPython();
         }
 
-        // Placeholder for the renamed method - implement its logic based on original intent
-        private static void DecrementQuota(SemaphoreSlim slim, int count = 1)
-        {
-             // TODO: Implement the actual logic intended by "InferenctSlime"
-             // This might involve decrementing a counter elsewhere, logging, etc.
-             // For now, it does nothing.
-             if (slim == null)
-             {
-                 // Log or handle null semaphore if it's unexpected
-                 // Logger.Warn("Attempted to decrement quota with a null semaphore.");
-                 return;
-             }
-             // Example: Log the current count before wait (if useful)
-             // Logger.Debug($"Semaphore current count before wait: {slim.CurrentCount}");
-        }
-
-        // --- ProcessReceiveMessage and subsequent methods remain complex and would require further analysis and refactoring ---
-        // --- The provided snippet ends here, further optimization requires the rest of the file ---
-
-        // Example of optimizing a part of ProcessReceiveMessage (Conceptual)
         private async Task<List<NlpCbMessageEx>> ProcessReceiveMessage(ChatbotMessageManagerMessageDto input)
         {
-            // Input validation
-            if (input.Message.Length > 256) // Consider making max length configurable
-                throw new UserFriendlyException(ChatErrorCode.Error_InvalidInputParameter, "Message length exceeds the maximum limit.");
+            if (input.Message.Length > 256)
+                throw new UserFriendlyException(ChatErrorCode.Error_InvalidInputParameter, "Invalid input parameter");
 
             var nlpChatbot = _nlpChatbotFunction.GetChatbotDto(input.ChatbotId.Value);
-            if (nlpChatbot == null || nlpChatbot.Disabled) // Combine checks
-                throw new UserFriendlyException(ChatErrorCode.Error_InvalidChatbotId, "Chatbot not found or is disabled.");
+            if (nlpChatbot == null || nlpChatbot.Disabled)
+                throw new UserFriendlyException(ChatErrorCode.Error_InvalidChatbotId, "ChatbotId should be a valid guid.");
+            //return null;
 
             input.SenderTime ??= Clock.Now;
 
             List<NlpCbMessageEx> nlpCbMessageExList = null;
-            NlpCbMessageEx initialMessageEx = new NlpCbMessageEx(); // Rename for clarity
+            NlpCbMessageEx nlpCbMessageEx = new NlpCbMessageEx();
 
             try
             {
-                // Consider UnitOfWork scope - is DisableFilter always needed here?
                 using (CurrentUnitOfWork.DisableFilter(AbpDataFilters.MustHaveTenant, AbpDataFilters.MayHaveTenant))
                 {
-                    // Create and insert the initial message
-                    var receivedMessage = new NlpCbMessage()
+                    nlpCbMessageEx.NlpCbMessage = await _nlpCbMessageRepository.InsertAsync(new NlpCbMessage()
                     {
                         TenantId = nlpChatbot.TenantId,
                         ClientId = input.ClientId,
@@ -691,460 +645,2165 @@ namespace AIaaS.Chatbot
                         NlpSenderRole = input.SenderRole,
                         NlpReceiverRole = input.ReceiverRole,
                         NlpAgentId = input.AgentId,
-                    };
-                    initialMessageEx.NlpCbMessage = await _nlpCbMessageRepository.InsertAsync(receivedMessage).ConfigureAwait(false);
+                    });
 
-                    // Add message to chatroom status cache
+                    //CurrentUnitOfWork.SaveChanges();
+
+                    //加入Message到Chatroom
                     if (input.SenderRole == "client" || input.ReceiverRole == "client")
                     {
-                        await AddMessageToChatroomStatus(input.ChatbotId.Value, input.ClientId.Value, new NlpChatroomMessage
+                        await AddMessageToChatroomStatus(input.ChatbotId.Value, input.ClientId.Value, new NlpChatroomMessage()
                         {
-                            IsClientSent = input.SenderRole == "client", // Simplified boolean assignment
+                            IsClientSent = input.SenderRole == "client" ? true : false,
                             Message = input.Message
-                        }).ConfigureAwait(false);
+                        });
                     }
 
-                    // Get chatbot reply if applicable
-                    if (input.ReceiverRole == "chatbot" && input.ChatbotId.HasValue && input.MessageType == "text") // Redundant ChatbotId check?
+                    //送至Chatbot AI
+                    if (input.ReceiverRole == "chatbot" && input.ChatbotId.HasValue && input.MessageType == "text")
                     {
                         try
                         {
-                            // GetChatbotReplyMessage is complex, needs its own optimization pass
-                            nlpCbMessageExList = await GetChatbotReplyMessage(nlpChatbot, input.ClientId.Value, initialMessageEx.NlpCbMessage).ConfigureAwait(false);
+                            nlpCbMessageExList = await GetChatbotReplyMessage(nlpChatbot, input.ClientId.Value, nlpCbMessageEx.NlpCbMessage);
                         }
-                        catch (Exception ex) // Catch specific exceptions if possible
+                        catch (Exception ex)
                         {
-                            Logger.Error($"Error getting chatbot reply: {ex.ToString()}", ex); // Use structured logging if available
+                            Logger.Error(ex.ToString(), ex);
 
-                            var chatroomStatus = await GetChatroomStatus(nlpChatbot.Id, input.ClientId.Value).ConfigureAwait(false);
+                            var chatroomStatus = await GetChatroomStatus(nlpChatbot.Id, input.ClientId.Value);
 
-                            // Check if agent intervention is configured
-                            if (input.SenderRole == "agent" || (chatroomStatus?.ResponseConfirmEnabled == true && chatroomStatus.ChatroomAgents?.Count > 0))
+                            if (input.SenderRole == "agent" || (chatroomStatus.ResponseConfirmEnabled == true && chatroomStatus.ChatroomAgents.Count > 0))
                             {
-                                // Defer message indicating failure to agent
-                                await DeferredSendAgentUnfoundMessageAnswer(input.ChatbotId.Value, input.ClientId.Value).ConfigureAwait(false);
-                                return nlpCbMessageExList ?? new List<NlpCbMessageEx>(); // Return whatever was processed before error, or empty list
+                                await DeferredSendAgentUnfoundMessageAnswer(input.ChatbotId.Value, input.ClientId.Value);
+                                return nlpCbMessageExList;
                             }
                             else
                             {
-                                throw; // Re-throw if no agent intervention
+                                throw;
                             }
                         }
 
-                        // Add reply messages to chatroom status cache
+                        //加入Message到Chatroom
+
                         if (nlpCbMessageExList != null)
                         {
-                            foreach (var msgEx in nlpCbMessageExList)
+                            foreach (var msg in nlpCbMessageExList)
                             {
-                                // Check msgEx and NlpCbMessage validity
-                                if (msgEx?.NlpCbMessage != null && msgEx.NlpCbMessage.NlpReceiverRole == "client")
-                                {
-                                    await AddMessageToChatroomStatus(input.ChatbotId.Value, input.ClientId.Value, new NlpChatroomMessage { IsClientSent = false, Message = msgEx.NlpCbMessage.NlpMessage }).ConfigureAwait(false);
-                                }
+                                if (msg != null && nlpCbMessageEx.NlpCbMessage != null && msg.NlpCbMessage.NlpReceiverRole == "client")
+                                    await AddMessageToChatroomStatus(input.ChatbotId.Value, input.ClientId.Value, new NlpChatroomMessage() { IsClientSent = false, Message = msg.NlpCbMessage.NlpMessage });
+
                             }
                         }
-                    }
-                } // End using UnitOfWork
-            }
-            catch (Exception ex) // Catch broader exceptions from the outer try block
-            {
-                 // Log fatal as it might indicate a significant issue in message processing flow
-                Logger.Fatal($"An error occurred during {nameof(ProcessReceiveMessage)}", ex);
 
-                // Attempt to save an unfound/error message as a fallback
-                try
-                {
-                     // Pass the original question if available
-                    var unfoundMessage = await SaveUnfoundMessage(nlpChatbot.Id, input.ClientId.Value, input.Message , null, null).ConfigureAwait(false);
-                    if (unfoundMessage != null)
-                    {
-                         // Add this error message to the chatroom status as well
-                        await AddMessageToChatroomStatus(input.ChatbotId.Value, input.ClientId.Value, new NlpChatroomMessage { IsClientSent = false, Message = unfoundMessage.NlpMessage }).ConfigureAwait(false);
-                         // Return this single error message DTO
-                         nlpCbMessageExList = new List<NlpCbMessageEx> { new NlpCbMessageEx(unfoundMessage) };
                     }
                 }
-                catch(Exception saveEx)
-                {
-                    Logger.Error($"Failed to save unfound message after an error in {nameof(ProcessReceiveMessage)}", saveEx);
-                }
-                 // Depending on requirements, might re-throw the original 'ex' or return the potentially populated nlpCbMessageExList
-                 // For now, return the list which might contain the saved unfound message or be null/empty
-                 return nlpCbMessageExList ?? new List<NlpCbMessageEx>();
             }
-
-            return nlpCbMessageExList ?? new List<NlpCbMessageEx>(); // Ensure a list is always returned
-        }
-
-        // ... (Rest of the methods would follow similar optimization patterns)
-        // GetChatbotReplyMessage, SaveNlpCbQAAccuracy, GetNlpCbMessageFromDatabase etc. need detailed review.
-
-        // Example: Optimization within GetChatbotReplyMessage structure (Conceptual)
-        private async Task<List<NlpCbMessageEx>> GetChatbotReplyMessage(NlpChatbotDto nlpChatbot, Guid clientId, NlpCbMessage nlpCbMessage)
-        {
-            var nlpCbMessageExList = new List<NlpCbMessageEx>();
-            var allPredictMessages = new List<AllPredictMessages>(); // Consider renaming AllPredictMessages for clarity
-            var inputMessage = nlpCbMessage.NlpMessage.Trim();
-
-            var chatroomStatus = await GetChatroomStatus(nlpChatbot.Id, clientId).ConfigureAwait(false);
-            var workflowStatus = await GetNlpWorkflowStateInfo(chatroomStatus.WfState).ConfigureAwait(false);
-
-            // --- Consolidate Prediction Logic ---
-            // Task list for parallel predictions
-            var predictionTasks = new List<Task<NlpCbGetChatbotPredictResult>>();
-
-            // Predict within current workflow state (if any)
-            if (nlpCbMessage.NlpSenderRole != "agent" && workflowStatus != null)
+            catch (Exception ex)
             {
-                predictionTasks.Add(ChatbotPredict(nlpChatbot.Id, inputMessage, workflowStatus.Id));
-                // Predict within the parent workflow (if different from state)
-                if (workflowStatus.NlpWorkflowId != workflowStatus.Id) // Check if workflow ID is different from state ID
-                {
-                     predictionTasks.Add(ChatbotPredict(nlpChatbot.Id, inputMessage, workflowStatus.NlpWorkflowId));
-                }
+                Logger.Fatal($"An error occured while ProcessReceiveMessage", ex);
+
+                nlpCbMessageEx.NlpCbMessage = await SaveUnfoundMessage(nlpChatbot.Id, input.ClientId.Value, null , null, null);
+                if (nlpCbMessageEx?.NlpCbMessage != null)
+                    await AddMessageToChatroomStatus(input.ChatbotId.Value, input.ClientId.Value, new NlpChatroomMessage() { IsClientSent = false, Message = input.Message });
             }
-
-            // Predict outside workflow (if allowed)
-            if (workflowStatus == null || workflowStatus.ResponseNonWorkflowAnswer)
-            {
-                predictionTasks.Add(ChatbotPredict(nlpChatbot.Id, inputMessage, Guid.Empty));
-            }
-
-            // Await all prediction tasks
-            var predictionResults = await Task.WhenAll(predictionTasks).ConfigureAwait(false);
-
-            // --- Process Prediction Results ---
-            // Use a dictionary or lookup for faster QA DTO retrieval if GetNlpQADtofromNNID involves I/O or significant work
-            // var qaDtoCache = new Dictionary<int, NlpQADto>(); // If GetNlpQADtofromNNID is slow
-
-            foreach (var predictResult in predictionResults)
-            {
-                if (predictResult.errorCode == "success" && predictResult.result != null)
-                {
-                    Guid? predictionContextId = Guid.Empty; // Determine context (workflow state, workflow, or general) based on which task returned this result
-                     // This requires modifying ChatbotPredict or wrapping the tasks to retain context.
-                     // For simplicity here, we might need to re-evaluate context inside the loop, less optimal.
-
-                    foreach (var item in predictResult.result)
-                    {
-                        var nlpQADto = await GetNlpQADtofromNNID(nlpChatbot.Id, item.nnid).ConfigureAwait(false);
-                        if (nlpQADto == null) continue;
-
-                        item.QaId = nlpQADto.Id; // Assign QA ID
-
-                        // Determine context and thresholds (this logic needs refinement based on how context is tracked)
-                        bool isWorkflowStateMatch = workflowStatus != null && nlpQADto.CurrentWfState == workflowStatus.Id;
-                        bool isWorkflowMatch = workflowStatus != null && nlpQADto.CurrentWfState == workflowStatus.NlpWorkflowId;
-                        bool isGeneralMatch = (nlpQADto.CurrentWfState == Guid.Empty || nlpQADto.CurrentWfState == null);
-
-                        // Determine applicable thresholds
-                        double predictionThreshold = (workflowStatus != null) ? nlpChatbot.WSPredThreshold : nlpChatbot.PredThreshold;
-                        double suggestionThreshold = nlpChatbot.SuggestionThreshold; // Assuming suggestion threshold is constant
-
-                        // Check if the prediction should be added based on context rules
-                        bool addPrediction = false;
-                        if (isWorkflowStateMatch && workflowStatus != null) addPrediction = true; // Matched specific state
-                        else if (isWorkflowMatch && workflowStatus != null && !isWorkflowStateMatch) addPrediction = true; // Matched workflow but not specific state
-                        else if (isGeneralMatch && (workflowStatus == null || workflowStatus.ResponseNonWorkflowAnswer)) addPrediction = true; // General QA and allowed
-
-                        if (addPrediction)
-                        {
-                             allPredictMessages.Add(new AllPredictMessages
-                             {
-                                 // Store original input context if possible
-                                 // ChatbotPredictInput = ...,
-                                 ChatbotPredictResult = item,
-                                 InputState = workflowStatus?.Id ?? Guid.Empty,
-                                 NlpQADto = nlpQADto,
-                                 inPredictionThreshold = item.probability > predictionThreshold,
-                                 inWorkflowState = isWorkflowStateMatch, // Flag if it matched the exact state
-                                 inWorkflow = isWorkflowMatch, // Flag if it matched the workflow
-                                 inSuggestionThreshold = item.probability > suggestionThreshold
-                             });
-                        }
-                    }
-                }
-                else if(predictResult.errorCode != "success")
-                {
-                    Logger.Error($"Chatbot prediction failed for ChatbotId {nlpChatbot.Id}, Context: {predictResult.workflowStateId}, Error: {predictResult.errorCode}");
-                }
-            }
-
-
-            // --- Distinct and Order Predictions ---
-            // Use LINQ GroupBy and FirstOrDefault for potentially cleaner distinct logic
-            var distinctPredictMessages = allPredictMessages
-                .Where(e => e.ChatbotPredictResult.nnid != 0) // Ensure valid NNID
-                .OrderByDescending(e => e.ChatbotPredictResult.probability > 0.99) // Prioritize very high confidence
-                .ThenByDescending(e => e.ChatbotPredictResult.probability > 0.95)
-                .ThenByDescending(e => e.inPredictionThreshold) // Prioritize predictions above threshold
-                // Adjust scoring based on context relevance - higher score for exact state match
-                .ThenByDescending(e => e.ChatbotPredictResult.probability * (e.inWorkflowState ? 1.1 : 1.0) * (e.inWorkflow ? 1.05 : 1.0))
-                .GroupBy(e => e.ChatbotPredictResult.nnid) // Group by NNID to get distinct answers
-                .Select(g => g.First()) // Select the highest-ranked prediction for each NNID
-                .Take(3) // Take top 3 distinct answers
-                .ToList();
-
-
-             // --- Update Incorrect Answer Count ---
-             bool predictionFound = distinctPredictMessages.Any() && distinctPredictMessages.First().inPredictionThreshold;
-             if (nlpCbMessage.NlpSenderRole != "agent") // Only update count for client messages
-             {
-                 chatroomStatus.IncorrectAnswerCount = predictionFound ? 0 : chatroomStatus.IncorrectAnswerCount + 1;
-                 // Consider updating chatroomStatus cache here if count changed, or batch updates later
-             }
-
-            // --- Update Workflow State ---
-            if (predictionFound)
-            {
-                var bestPrediction = distinctPredictMessages.First();
-                var nextWfState = bestPrediction.NlpQADto.NextWfState;
-                // Check if NextWfState indicates a change and is not the 'keep current' marker
-                if (nextWfState.HasValue && nextWfState != NlpWorkflowStateConsts.WfsKeepCurrent && nextWfState != chatroomStatus.WfState)
-                {
-                    chatroomStatus.WfState = nextWfState.Value; // Assign the new state GUID
-                    chatroomStatus.IncorrectAnswerCount = 0; // Reset error count on state change
-                    Debug.WriteLine($"WorkflowState changed to: {chatroomStatus.WfState}");
-                    // Update chatroomStatus cache immediately or batch later
-                }
-            }
-
-
-            // --- Handle Prediction Errors/Low Confidence ---
-            string predictionErrorMessage = null;
-            if (workflowStatus != null && chatroomStatus.IncorrectAnswerCount >= 1 && !predictionFound) // Check if in workflow and no prediction met threshold
-            {
-                 Guid? errorOpId = null;
-                 if (chatroomStatus.IncorrectAnswerCount >= 3 && !string.IsNullOrEmpty(workflowStatus.Outgoing3FalseOp))
-                 {
-                     errorOpId = Guid.Parse(workflowStatus.Outgoing3FalseOp); // Assuming Outgoing3FalseOp stores the Guid as string
-                 }
-                 else if (!string.IsNullOrEmpty(workflowStatus.OutgoingFalseOp)) // Check count >= 1 implicitly covered by outer if
-                 {
-                     errorOpId = Guid.Parse(workflowStatus.OutgoingFalseOp); // Assuming OutgoingFalseOp stores the Guid as string
-                 }
-
-                 if (errorOpId.HasValue)
-                 {
-                     // GetNlpWfsFalsePredictionOpDto needs optimization review
-                     var nlpWfsOp = await GetNlpWfsFalsePredictionOpDto(nlpChatbot.Id, clientId, errorOpId.Value.ToString()).ConfigureAwait(false); // Pass Guid as string? Check method signature
-                     if (nlpWfsOp != null)
-                     {
-                         predictionErrorMessage = nlpWfsOp.ResponseMsg;
-                         // Update workflow state based on the error operation
-                         if (nlpWfsOp.NextStatus != chatroomStatus.WfState)
-                         {
-                              chatroomStatus.WfState = nlpWfsOp.NextStatus;
-                              chatroomStatus.IncorrectAnswerCount = 0; // Reset count as error path defines next step
-                              Debug.WriteLine($"WorkflowState changed via error op to: {chatroomStatus.WfState}");
-                              // Update chatroomStatus cache
-                         }
-                     }
-                 }
-            }
-
-            // --- Save Accuracy ---
-            // Consider making SaveNlpCbQAAccuracy faster or run in background if it's slow
-            var nlpCbQAAccuracy = await SaveNlpCbQAAccuracy(nlpCbMessage, distinctPredictMessages).ConfigureAwait(false);
-
-
-             // --- Determine Response Path (Agent Monitoring vs. Direct Client Response) ---
-            bool agentMonitoring = nlpCbMessage.NlpSenderRole == "agent" || (chatroomStatus.ResponseConfirmEnabled == true && chatroomStatus.ChatroomAgents?.Count > 0);
-
-            if (agentMonitoring)
-            {
-                 // --- Agent Monitoring Path ---
-                 // Send error message (if any) to agent
-                 if (!string.IsNullOrEmpty(predictionErrorMessage))
-                 {
-                     var errorMessageForAgent = new NlpCbMessageEx(new NlpCbMessage
-                     {
-                         TenantId = nlpChatbot.TenantId,
-                         ClientId = clientId,
-                         NlpChatbotId = nlpChatbot.Id,
-                         NlpMessage = predictionErrorMessage,
-                         NlpMessageType = "text.workflow.error", // Specific type for agent UI?
-                         NlpCreationTime = Clock.Now,
-                         NlpSenderRole = "chatbot",
-                         NlpReceiverRole = "agent", // Target agent
-                         NlpAgentId = nlpCbMessage.NlpAgentId, // Assign to the agent who sent or is monitoring
-                         QAAccuracyId = null // No direct accuracy for this error message itself
-                     });
-                     await _nlpCbMessageRepository.InsertAsync(errorMessageForAgent.NlpCbMessage).ConfigureAwait(false);
-                     nlpCbMessageExList.Add(errorMessageForAgent);
-                 }
-
-                 // Prepare suggested answers for agent
-                 var suggestedAnswers = new List<string>();
-                 // Get standard unfound message (without GPT for agent suggestions)
-                 var unfoundMessageText = (await GetUnfoundMessageWithoutGPTAsync(nlpChatbot.Id, clientId, inputMessage, null, nlpCbQAAccuracy?.Id).ConfigureAwait(false))?.NlpMessage;
-                 if (!string.IsNullOrEmpty(unfoundMessageText))
-                 {
-                     suggestedAnswers.Add(unfoundMessageText);
-                 }
-
-                 // Add answers from predictions above suggestion threshold
-                 foreach (var result in distinctPredictMessages)
-                 {
-                     if (result.inSuggestionThreshold)
-                     {
-                         try
-                         {
-                             var answers = JsonToAnswer(result.NlpQADto.Answer); // JsonToAnswer needs review
-                             foreach (var answer in answers)
-                             {
-                                 // Replace custom strings for agent context if needed
-                                 suggestedAnswers.Add(await ReplaceCustomStringAsync(answer, nlpChatbot.Id).ConfigureAwait(false));
-                             }
-                         }
-                         catch (Exception ex)
-                         {
-                             Logger.Error($"Error processing suggested answer for NNID {result.ChatbotPredictResult.nnid}: {ex.Message}", ex);
-                         }
-                     }
-                     // else break; // Optimization: if ordered, stop once below suggestion threshold
-                 }
-
-                 // Create a message DTO containing only suggestions for the agent
-                 if (suggestedAnswers.Any())
-                 {
-                      nlpCbMessageExList.Add(new NlpCbMessageEx(new NlpCbMessage
-                      {
-                          TenantId = nlpChatbot.TenantId,
-                          ClientId = clientId,
-                          NlpChatbotId = nlpChatbot.Id,
-                          NlpMessage = "", // No primary message
-                          NlpMessageType = chatroomStatus.WfState == Guid.Empty ? "text.suggestion" : "text.workflow.suggestion", // Specific type?
-                          NlpCreationTime = Clock.Now,
-                          NlpSenderRole = "chatbot",
-                          NlpReceiverRole = "agent",
-                          NlpAgentId = nlpCbMessage.NlpAgentId,
-                          QAAccuracyId = nlpCbQAAccuracy?.Id // Link suggestions back to the accuracy record
-                      }, suggestedAnswers)); // Pass suggestions in the constructor or dedicated property
-                 }
-                 // No direct reply to client in this path
-            }
-            else
-            {
-                 // --- Direct Client Response Path ---
-                 // Send workflow error message (if any) to client
-                 if (!string.IsNullOrEmpty(predictionErrorMessage))
-                 {
-                     var errorMessageForClient = new NlpCbMessageEx(new NlpCbMessage
-                     {
-                         TenantId = nlpChatbot.TenantId,
-                         ClientId = clientId,
-                         NlpChatbotId = nlpChatbot.Id,
-                         NlpMessage = predictionErrorMessage,
-                         NlpMessageType = "text.workflow.error",
-                         NlpCreationTime = Clock.Now,
-                         NlpSenderRole = "chatbot",
-                         NlpReceiverRole = "client", // Target client
-                         QAAccuracyId = null
-                     });
-                     await _nlpCbMessageRepository.InsertAsync(errorMessageForClient.NlpCbMessage).ConfigureAwait(false);
-                     nlpCbMessageExList.Add(errorMessageForClient);
-                 }
-
-                 // Prepare alternative questions for client (if prediction was below threshold or multiple suggestions exist)
-                 List<string> alternativeQuestionList = null;
-                 int skipCount = predictionFound ? 1 : 0; // Skip the first if it was a confident match
-
-                 foreach (var result in distinctPredictMessages.Skip(skipCount))
-                 {
-                     if (result.inSuggestionThreshold)
-                     {
-                         try
-                         {
-                             var questions = result.NlpQADto.GetQuestionList(); // GetQuestionList needs review
-                             if (questions.Any())
-                             {
-                                 alternativeQuestionList ??= new List<string>();
-                                 // Replace custom strings for client context
-                                 alternativeQuestionList.Add(await ReplaceCustomStringAsync(questions.First(), nlpChatbot.Id).ConfigureAwait(false));
-                             }
-                         }
-                         catch (Exception ex)
-                         {
-                             Logger.Error($"Error processing alternative question for NNID {result.ChatbotPredictResult.nnid}: {ex.Message}", ex);
-                         }
-                     }
-                     // else break; // Optimization if ordered
-                 }
-
-                 // Handle case where no confident prediction was found
-                 if (!predictionFound)
-                 {
-                      // Check if we should suppress the standard "unfound" message based on workflow error settings
-                     bool suppressUnfound = !string.IsNullOrEmpty(predictionErrorMessage) && workflowStatus?.DontResponseNonWorkflowErrorAnswer == true;
-
-                     if (!suppressUnfound)
-                     {
-                         // Save and prepare the standard "unfound" message (potentially with GPT)
-                         var unfoundMessage = await SaveUnfoundMessage(nlpChatbot.Id, clientId, inputMessage, alternativeQuestionList, nlpCbQAAccuracy?.Id).ConfigureAwait(false);
-                         if (unfoundMessage != null)
-                         {
-                             nlpCbMessageExList.Add(new NlpCbMessageEx(unfoundMessage));
-                         }
-                     }
-                     // Return here as no primary answer is given
-                     return nlpCbMessageExList;
-                 }
-
-                 // --- Prepare Confident Answer for Client ---
-                 var bestMatch = distinctPredictMessages.First();
-                 PredictedQAMessage output = new PredictedQAMessage { QaId = bestMatch.ChatbotPredictResult.QaId };
-
-                 // Get answer text (GetAnswerFromNNIDRepetition needs optimization review)
-                 output.Message = await GetAnswerFromNNIDRepetition(nlpChatbot.Id, bestMatch.ChatbotPredictResult.nnid).ConfigureAwait(false);
-
-                 // Post-process the answer (replace variables, potentially call GPT)
-                 if (!string.IsNullOrEmpty(output.Message))
-                 {
-                     output.Message = await ReplaceCustomStringAsync(output.Message, nlpChatbot.Id).ConfigureAwait(false);
-                     // ChatGPT call needs careful consideration for performance and cost
-                     output.Message = await ChatGPT(nlpChatbot.Id, inputMessage, output.Message).ConfigureAwait(false);
-                 }
-
-                 // Handle case where answer processing resulted in an empty message
-                 if (string.IsNullOrEmpty(output.Message))
-                 {
-                     Logger.Warn($"Answer for NNID {bestMatch.ChatbotPredictResult.nnid} became empty after processing.");
-                     // Fallback to unfound message
-                     var unfoundMessage = await SaveUnfoundMessage(nlpChatbot.Id, clientId, inputMessage, alternativeQuestionList, nlpCbQAAccuracy?.Id).ConfigureAwait(false);
-                     if (unfoundMessage != null)
-                     {
-                         nlpCbMessageExList.Add(new NlpCbMessageEx(unfoundMessage));
-                     }
-                     return nlpCbMessageExList;
-                 }
-
-                 // Create the final message DTO for the client
-                 NlpCbMessage finalClientMessage = new NlpCbMessage
-                 {
-                     TenantId = nlpChatbot.TenantId,
-                     ClientId = clientId,
-                     NlpChatbotId = nlpChatbot.Id,
-                     NlpMessage = output.Message.Substring(0, Math.Min(output.Message.Length, 1024)), // Ensure length constraint
-                     QAId = output.QaId,
-                     NlpMessageType = chatroomStatus.WfState == Guid.Empty ? "text" : "text.workflow", // Reflect workflow status
-                     NlpCreationTime = Clock.Now,
-                     NlpSenderRole = "chatbot",
-                     NlpReceiverRole = "client",
-                     AlternativeQuestion = (alternativeQuestionList == null || !alternativeQuestionList.Any()) ? null : JsonConvert.SerializeObject(alternativeQuestionList),
-                     QAAccuracyId = nlpCbQAAccuracy?.Id
-                 };
-
-                 await _nlpCbMessageRepository.InsertAsync(finalClientMessage).ConfigureAwait(false);
-                 nlpCbMessageExList.Add(new NlpCbMessageEx(finalClientMessage));
-            }
-
-            // Update ChatroomStatus cache if state or error count changed during processing
-            // Consider a single update call here if multiple changes occurred
-            // UpdateChatroomStatusCache(nlpChatbot.Id, clientId, chatroomStatus);
 
             return nlpCbMessageExList;
         }
 
-    } // End Class
-} // End Namespace
+
+        private async Task<List<NlpCbMessageEx>> GetChatbotReplyMessage(NlpChatbotDto nlpChatbot, Guid clientId, NlpCbMessage nlpCbMessage)
+        {
+            var nlpCbMessageExList = new List<NlpCbMessageEx>();
+            var allPredictMessages = new List<AllPredictMessages>();
+
+            //var threshold_predict = nlpChatbot.PredThreshold;
+            //var threshold_suggestion = nlpChatbot.SuggestionThreshold;
+
+            //NlpCbMessageEx nlpCbMessageEx = null;
+            var inputMessage = nlpCbMessage.NlpMessage.Trim();
+
+            //var questionWebAPITask = _nlpCbDictionariesFunction.GetQuestionSegmentsHashForComparison(nlpChatbot.TenantId, nlpChatbot.Id, nlpChatbot.Language, inputMessage);
+
+            var chatroomStatus = await GetChatroomStatus(nlpChatbot.Id, clientId);
+
+            //if (chatroomStatus.WfState != Guid.Empty)
+            //threshold_predict = nlpChatbot.WSPredThreshold;
+
+            //var threshold_same = threshold_predict / 2;      //檢查Segment是否相同，但accu要大於threadhold_same才檢查
+
+            var workflowStatus = await GetNlpWorkflowStateInfo(chatroomStatus.WfState);
+
+            //先檢查在流程內的WorkflowState
+            if (nlpCbMessage.NlpSenderRole != "agent" && workflowStatus != null)
+            {
+                //先檢查在流程內的WorkflowState
+                //var message1 = _nlpCbDictionariesFunction.PrepareSynonymString(nlpChatbot.TenantId, nlpChatbot.Id, nlpChatbot.Language, (workflowStatus.Id, inputMessage));
+
+                var predictResult1 = await ChatbotPredict(nlpChatbot.Id, inputMessage, workflowStatus.Id);
+                if (predictResult1.errorCode == "success" && predictResult1.result != null && predictResult1.result.Any())
+                {
+                    foreach (var item in predictResult1.result)
+                    {
+                        //只加入相同workflowstate的回應
+                        var nlpQADto = await GetNlpQADtofromNNID(nlpChatbot.Id, item.nnid);
+                        if (nlpQADto == null)
+                            continue;
+
+                        if (nlpQADto.CurrentWfState != null && nlpQADto.CurrentWfState != Guid.Empty && nlpQADto.CurrentWfState.Value == workflowStatus.Id)
+                        {
+                            item.QaId = nlpQADto.Id;
+
+                            allPredictMessages.Add(new AllPredictMessages()
+                            {
+                                ChatbotPredictInput = new (Guid?, string)[] { (workflowStatus.Id, inputMessage) },
+                                ChatbotPredictResult = item,
+                                InputState = workflowStatus == null ? Guid.Empty : workflowStatus.Id,
+                                NlpQADto = nlpQADto,
+                                inPredictionThreshold = item.probability > nlpChatbot.WSPredThreshold,
+                                inWorkflowState = true,
+                                inSuggestionThreshold = item.probability > nlpChatbot.SuggestionThreshold
+                            });
+                        }
+                    }
+                }
+
+                //再檢查在流程內的Workflow，workflow內有多個workflowstates
+
+                predictResult1 = await ChatbotPredict(nlpChatbot.Id, inputMessage, workflowStatus.NlpWorkflowId);
+                if (predictResult1.errorCode == "success" && predictResult1.result != null && predictResult1.result.Any())
+                {
+                    foreach (var item in predictResult1.result)
+                    {
+                        var nlpQADto = await GetNlpQADtofromNNID(nlpChatbot.Id, item.nnid);
+                        if (nlpQADto == null)
+                            continue;
+
+                        if (nlpQADto.CurrentWfState != null && nlpQADto.CurrentWfState != Guid.Empty && nlpQADto.CurrentWfState.Value == workflowStatus.NlpWorkflowId)
+                        {
+                            if (nlpQADto.CurrentWfState == workflowStatus.NlpWorkflowId)
+                            {
+                                item.QaId = nlpQADto.Id;
+
+                                //只加入相同workflow的回應
+                                allPredictMessages.Add(new AllPredictMessages()
+                                {
+                                    //ChatbotPredictInput = message1,
+                                    ChatbotPredictInput = new (Guid?, string)[] { (workflowStatus.NlpWorkflowId, nlpCbMessage.NlpMessage) },
+                                    ChatbotPredictResult = item,
+                                    InputState = workflowStatus == null ? Guid.Empty : workflowStatus.Id,
+                                    NlpQADto = nlpQADto,
+                                    inPredictionThreshold = item.probability > nlpChatbot.WSPredThreshold,
+                                    inWorkflow = true,
+                                    inSuggestionThreshold = item.probability > nlpChatbot.SuggestionThreshold
+
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+
+            //非流程或在流程但可以問非流程問題
+            if (workflowStatus == null || workflowStatus.ResponseNonWorkflowAnswer)
+            {
+                //var message2 = _nlpCbDictionariesFunction.PrepareSynonymString(nlpChatbot.TenantId, nlpChatbot.Id, nlpChatbot.Language, (Guid.Empty, nlpCbMessage.NlpMessage));
+
+                var predictResult2 = await ChatbotPredict(nlpChatbot.Id, nlpCbMessage.NlpMessage, Guid.Empty);
+                if (predictResult2.errorCode == "success" && predictResult2.result != null && predictResult2.result.Any())
+                {
+                    foreach (var item in predictResult2.result)
+                    {
+                        //只加入相同workflowstatus==null的回應
+                        var nlpQADto = await GetNlpQADtofromNNID(nlpChatbot.Id, item.nnid);
+                        if (nlpQADto == null)
+                            continue;
+
+                        if (nlpQADto.CurrentWfState == Guid.Empty || nlpQADto.CurrentWfState == null)
+                        {
+                            item.QaId = nlpQADto.Id;
+
+                            allPredictMessages.Add(new AllPredictMessages()
+                            {
+                                ChatbotPredictInput = new (Guid?, string)[] { (Guid.Empty, nlpCbMessage.NlpMessage) },
+                                ChatbotPredictResult = item,
+                                InputState = workflowStatus == null ? Guid.Empty : workflowStatus.Id,
+                                NlpQADto = nlpQADto,
+                                inPredictionThreshold = (workflowStatus != null ? item.probability > nlpChatbot.WSPredThreshold : item.probability > nlpChatbot.PredThreshold),
+                                inSuggestionThreshold = item.probability > nlpChatbot.SuggestionThreshold
+                            });
+                        }
+                    }
+                }
+            }
+
+            //Distinct 去掉多餘且可能性低的相同NNID回應
+            var orderPredictMessages = allPredictMessages.Where(e => e.ChatbotPredictResult.nnid != 0)
+                .OrderByDescending(e => e.ChatbotPredictResult.probability > .99)
+                .ThenByDescending(e => e.ChatbotPredictResult.probability > .95)
+                .ThenByDescending(e => e.inPredictionThreshold)
+                .ThenByDescending(e => e.ChatbotPredictResult.probability * (e.inWorkflowState ? 1.1 : 1.0) * (e.inWorkflow ? 1.05 : 1.0));
+
+            var distinctPredictMessages = new List<AllPredictMessages>();
+            foreach (var item in orderPredictMessages)
+            {
+                if (distinctPredictMessages.Any(e => e.ChatbotPredictResult.nnid == item.ChatbotPredictResult.nnid) == false)
+                {
+                    distinctPredictMessages.Add(item);
+
+                    if (distinctPredictMessages.Count >= 3)
+                        break;
+                }
+            }
+
+            //設定連續無法回答問題的數目
+            if (nlpCbMessage.NlpSenderRole != "agent")
+            {
+                chatroomStatus.IncorrectAnswerCount = (distinctPredictMessages.Count > 0 && distinctPredictMessages.First().inPredictionThreshold) ? 0 : chatroomStatus.IncorrectAnswerCount + 1;
+            }
+
+
+            //設定新的流程狀態，若命中問題
+            if (distinctPredictMessages.Count > 0 && distinctPredictMessages.First().inPredictionThreshold)
+            {
+                var nlpQADto = distinctPredictMessages.First().NlpQADto;
+                if (nlpQADto.NextWfState != null && nlpQADto.NextWfState != NlpWorkflowStateConsts.WfsKeepCurrent)
+                {
+                    chatroomStatus.WfState = (nlpQADto.NextWfState == null) ? Guid.Empty : nlpQADto.NextWfState.Value;
+                    Debug.WriteLine("WorkflowState : " + chatroomStatus.WfState.ToString());
+                }
+            }
+
+
+            //設定無法命中的回應，當錯誤>=1次或>=3次時設定
+            string PredictionErrorMessage = null;
+            if (workflowStatus != null && chatroomStatus.IncorrectAnswerCount >= 1)
+            {
+                if (chatroomStatus.IncorrectAnswerCount >= 3)
+                {
+                    var nlpWfsOp = await GetNlpWfsFalsePredictionOpDto(nlpChatbot.Id, clientId, workflowStatus.Outgoing3FalseOp);
+                    if (nlpWfsOp != null)
+                    {
+                        PredictionErrorMessage = nlpWfsOp.ResponseMsg;
+                        chatroomStatus.WfState = nlpWfsOp.NextStatus;
+                        Debug.WriteLine("WorkflowState : " + chatroomStatus.WfState.ToString());
+                    }
+                }
+                else if (chatroomStatus.IncorrectAnswerCount >= 1)
+                {
+                    var nlpWfsOp = await GetNlpWfsFalsePredictionOpDto(nlpChatbot.Id, clientId, workflowStatus.OutgoingFalseOp);
+                    if (nlpWfsOp != null)
+                    {
+                        PredictionErrorMessage = nlpWfsOp.ResponseMsg;
+                        chatroomStatus.WfState = nlpWfsOp.NextStatus;
+                        Debug.WriteLine("WorkflowState : " + chatroomStatus.WfState.ToString());
+                    }
+                }
+            }
+
+            var nlpCbQAAccuracy = await SaveNlpCbQAAccuracy(nlpCbMessage, distinctPredictMessages);
+
+            //若是Agent監控
+            if (nlpCbMessage.NlpSenderRole == "agent" || (chatroomStatus.ResponseConfirmEnabled == true && chatroomStatus.ChatroomAgents.Count > 0))
+            {
+                if (PredictionErrorMessage.IsNullOrEmpty() == false)
+                {
+                    var sendNlpCbMessage = new NlpCbMessageEx(new NlpCbMessage()
+                    {
+                        TenantId = nlpChatbot.TenantId,
+                        ClientId = clientId,
+                        NlpChatbotId = nlpChatbot.Id,
+                        NlpMessage = PredictionErrorMessage,
+                        NlpMessageType = "text.workflow.error",
+                        NlpCreationTime = Clock.Now,
+                        NlpSenderRole = "chatbot",
+                        NlpReceiverRole = "agent",
+                        NlpAgentId = nlpCbMessage.NlpAgentId,
+                        AlternativeQuestion = null,
+                        QAAccuracyId = null
+                    });
+
+                    await _nlpCbMessageRepository.InsertAsync(sendNlpCbMessage.NlpCbMessage);
+                    //CurrentUnitOfWork.SaveChanges();
+                    nlpCbMessageExList.Add(sendNlpCbMessage);
+                }
+
+                var suggestedAnswers = new List<string>();
+
+                var unfoundMessage = (await GetUnfoundMessageWithoutGPTAsync(nlpChatbot.Id, clientId, inputMessage, null, nlpCbQAAccuracy?.Id))?.NlpMessage;
+
+                if (unfoundMessage.IsNullOrEmpty() == false)
+                    suggestedAnswers.Add(unfoundMessage);
+
+
+                foreach (var result in distinctPredictMessages)
+                {
+                    if (result.inSuggestionThreshold)
+                    {
+                        try
+                        {
+                            var nlpQADto = result.NlpQADto;
+                            var answers = JsonConvert.DeserializeObject<string[]>(nlpQADto.Answer);
+
+                            foreach (var answer in answers)
+                                suggestedAnswers.Add(await ReplaceCustomStringAsync(answer, nlpChatbot.Id));
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.Fatal(ex.ToString(), ex);
+                        }
+                    }
+                    else
+                        break;
+                }
+
+                nlpCbMessageExList.Add(new NlpCbMessageEx(new NlpCbMessage()
+                {
+                    TenantId = nlpChatbot.TenantId,
+                    ClientId = clientId,
+                    NlpChatbotId = nlpChatbot.Id,
+                    NlpMessage = "",
+                    NlpMessageType = chatroomStatus.WfState == Guid.Empty ? "text" : "text.workflow",
+                    NlpCreationTime = Clock.Now,
+                    NlpSenderRole = "chatbot",
+                    NlpReceiverRole = "agent",
+                    NlpAgentId = nlpCbMessage.NlpAgentId,
+                    AlternativeQuestion = null,
+                    QAAccuracyId = nlpCbQAAccuracy?.Id
+                }, suggestedAnswers
+                ));
+
+                return nlpCbMessageExList;
+            }
+            else
+            {
+                //User至Chatbot 或 Agent端不監控，直接由Chatbot回應至User
+
+                if (PredictionErrorMessage.IsNullOrEmpty() == false)
+                {
+                    var sendNlpCbMessage2 = new NlpCbMessageEx(new NlpCbMessage()
+                    {
+                        TenantId = nlpChatbot.TenantId,
+                        ClientId = clientId,
+                        NlpChatbotId = nlpChatbot.Id,
+                        NlpMessage = PredictionErrorMessage,
+                        NlpMessageType = "text.workflow.error",
+                        NlpCreationTime = Clock.Now,
+                        NlpSenderRole = "chatbot",
+                        NlpReceiverRole = "client",
+                        NlpAgentId = null,
+                        AlternativeQuestion = null,
+                        QAAccuracyId = null
+                    });
+
+                    await _nlpCbMessageRepository.InsertAsync(sendNlpCbMessage2.NlpCbMessage);
+                    //CurrentUnitOfWork.SaveChanges();
+                    nlpCbMessageExList.Add(sendNlpCbMessage2);
+                }
+
+                List<string> alternativeQuestion = null;
+
+
+                var firstIndex = 0;
+                if (distinctPredictMessages.FirstOrDefault().inPredictionThreshold)
+                    firstIndex = 1;
+
+                foreach (var result in distinctPredictMessages.Skip(firstIndex))
+                {
+                    //if (result.ChatbotPredictResult.probability >= threshold_high)
+                    //    break;
+
+                    if (result.inSuggestionThreshold)
+                    {
+                        try
+                        {
+                            var nlpQADto = result.NlpQADto;
+                            var questions = nlpQADto.GetQuestionList();
+                            alternativeQuestion ??= new List<string>();
+                            alternativeQuestion.Add(await ReplaceCustomStringAsync(questions.First(), nlpChatbot.Id));
+                        }
+                        catch (Exception)
+                        {
+                        }
+                    }
+                }
+
+                if (distinctPredictMessages.First().inPredictionThreshold == false && nlpCbMessage.NlpSenderRole != "agent")
+                {
+                    if (PredictionErrorMessage.IsNullOrEmpty() == true || (PredictionErrorMessage.IsNullOrEmpty() == false && workflowStatus != null && workflowStatus.DontResponseNonWorkflowErrorAnswer == false))
+                    {
+                        var unfoundMessage = await SaveUnfoundMessage(nlpChatbot.Id, clientId, inputMessage, alternativeQuestion, nlpCbQAAccuracy?.Id);
+
+                        if (unfoundMessage != null)
+                            nlpCbMessageExList.Add(new NlpCbMessageEx(unfoundMessage));
+                    }
+
+                    return nlpCbMessageExList;
+                }
+
+                //回傳預測答案及QaId
+                PredictedQAMessage output = new PredictedQAMessage();
+
+                if (AbpSession.TenantId == 1)
+                {
+                    foreach (var i in distinctPredictMessages)
+                    {
+                        output ??= new PredictedQAMessage();
+
+                        if (output.Message.IsNullOrWhiteSpace() == false && output.Message.Length > 0)
+                            output.Message += "<br>";
+
+                        output.QaId = distinctPredictMessages.First().ChatbotPredictResult.QaId;
+
+                        output.Message += (100.0 * i.ChatbotPredictResult.probability).ToString("N2") + "___" + i.ChatbotPredictResult.nnid.ToString() + "___" + (await GetAnswerFromNNIDRepetition(nlpChatbot.Id, i.ChatbotPredictResult.nnid));
+                    }
+                }
+                else
+                {
+                    output.Message = await GetAnswerFromNNIDRepetition(nlpChatbot.Id, distinctPredictMessages.First().ChatbotPredictResult.nnid);
+
+                    output.QaId = distinctPredictMessages.First().ChatbotPredictResult.QaId;
+                }
+
+                //更新變數
+                if (output.Message.IsNullOrEmpty() == false)
+                {
+                    output.Message = await ReplaceCustomStringAsync(output.Message, nlpChatbot.Id);
+                    output.Message = await ChatGPT(nlpChatbot.Id, inputMessage, output.Message);
+                }
+
+                if (output.Message.IsNullOrEmpty())
+                {
+                    var unfoundMessage = await SaveUnfoundMessage(nlpChatbot.Id, clientId,  inputMessage, alternativeQuestion, nlpCbQAAccuracy?.Id);
+
+                    if (unfoundMessage != null)
+                        nlpCbMessageExList.Add(new NlpCbMessageEx(unfoundMessage));
+
+                    return nlpCbMessageExList;
+                }
+
+                NlpCbMessage sendNlpCbMessage = new NlpCbMessage()
+                {
+                    TenantId = nlpChatbot.TenantId,
+                    ClientId = clientId,
+                    NlpChatbotId = nlpChatbot.Id,
+                    NlpMessage = output.Message.Substring(0, Math.Min(output.Message.Length, 1024)),
+                    QAId = output.QaId,
+                    NlpMessageType = chatroomStatus.WfState == Guid.Empty ? "text" : "text.workflow",
+                    NlpCreationTime = Clock.Now,
+                    NlpSenderRole = "chatbot",
+                    NlpReceiverRole = "client",
+                    NlpAgentId = null,
+                    AlternativeQuestion = (alternativeQuestion == null) ? null : JsonConvert.SerializeObject(alternativeQuestion),
+                    QAAccuracyId = nlpCbQAAccuracy?.Id
+                };
+
+                await _nlpCbMessageRepository.InsertAsync(sendNlpCbMessage);
+                //CurrentUnitOfWork.SaveChanges();
+
+                nlpCbMessageExList.Add(new NlpCbMessageEx(sendNlpCbMessage));
+                return nlpCbMessageExList;
+            }
+        }
+
+
+        [DisableAuditing]
+        private async Task<NlpCbMessage> GetUnfoundMessageAsync(Guid chatbotId, Guid clientId, string question, List<string> alternativeQuestion, Guid? qaAccuracyId)
+        {
+            var nlpChatbot = _nlpChatbotFunction.GetChatbotDto(chatbotId);
+            var failedMessage = nlpChatbot.FailedMsg;
+            if (failedMessage.IsNullOrEmpty() == true)
+                return null;
+
+            failedMessage = await ReplaceCustomStringAsync(nlpChatbot.FailedMsg, chatbotId);
+
+            if (string.IsNullOrEmpty(question) == false)
+                failedMessage = await ChatGPT(chatbotId, question, failedMessage);
+
+            NlpCbMessage nlpCbMessage = new NlpCbMessage()
+            {
+                TenantId = nlpChatbot.TenantId,
+                ClientId = clientId,
+                NlpChatbotId = chatbotId,
+                NlpMessage = failedMessage,
+                NlpMessageType = "text.error",
+                NlpCreationTime = Clock.Now,
+                NlpSenderRole = "chatbot",
+                NlpReceiverRole = "client",
+                NlpAgentId = null,
+                AlternativeQuestion = (alternativeQuestion == null) ? null : JsonConvert.SerializeObject(alternativeQuestion),
+                QAAccuracyId = qaAccuracyId
+            };
+            return nlpCbMessage;
+        }
+
+        [DisableAuditing]
+        private async Task<NlpCbMessage> GetUnfoundMessageWithoutGPTAsync(Guid chatbotId, Guid clientId, string question, List<string> alternativeQuestion, Guid? qaAccuracyId)
+        {
+            var nlpChatbot = _nlpChatbotFunction.GetChatbotDto(chatbotId);
+            var failedMessage = nlpChatbot.FailedMsg;
+            if (failedMessage.IsNullOrEmpty() == true)
+                return null;
+
+            failedMessage = await ReplaceCustomStringAsync(nlpChatbot.FailedMsg, chatbotId);
+
+            NlpCbMessage nlpCbMessage = new NlpCbMessage()
+            {
+                TenantId = nlpChatbot.TenantId,
+                ClientId = clientId,
+                NlpChatbotId = chatbotId,
+                NlpMessage = failedMessage,
+                NlpMessageType = "text.error",
+                NlpCreationTime = Clock.Now,
+                NlpSenderRole = "chatbot",
+                NlpReceiverRole = "client",
+                NlpAgentId = null,
+                AlternativeQuestion = (alternativeQuestion == null) ? null : JsonConvert.SerializeObject(alternativeQuestion),
+                QAAccuracyId = qaAccuracyId
+            };
+            return nlpCbMessage;
+        }
+
+
+        private async Task<NlpCbMessage> SaveUnfoundMessage(Guid chatbotId, Guid clientId, string question, List<string> alternativeQuestion, Guid? qaAccuracyId)
+        {
+            var nlpCbMessage = await GetUnfoundMessageAsync(chatbotId, clientId, question, alternativeQuestion, qaAccuracyId);
+
+            if (nlpCbMessage == null)
+                return null;
+
+            await _nlpCbMessageRepository.InsertAsync(nlpCbMessage);
+            //CurrentUnitOfWork.SaveChanges();
+            return nlpCbMessage;
+        }
+
+        private void SendChatroomStatusToAgents(int tenantId, NlpChatroomStatus chatroomStatus)
+        {
+            if (chatroomStatus.LatestMessages != null && chatroomStatus.LatestMessages.Count > 0)
+                _chatbotCommunicator.SendMessageToTenant(tenantId, "updateChatroomStatus", chatroomStatus.ToDictionary());
+        }
+
+        private async Task<NlpChatroomStatus> AddMessageToChatroomStatus(Guid chatbotId, Guid clientId, NlpChatroomMessage nlpChatroomMessage)
+        {
+            var chatroomStatus = await GetChatroomStatus(chatbotId, clientId);
+            //var nlpchatbot = _nlpChatbotFunction.GetChatbotDto(chatbotId);
+
+            if (chatroomStatus != null)
+            {
+                chatroomStatus.LatestMessages ??= new List<NlpChatroomMessage>();
+                chatroomStatus.LatestMessages.Add(nlpChatroomMessage);
+                chatroomStatus.LatestMessages = chatroomStatus.LatestMessages.TakeLast(2).ToList();
+                chatroomStatus.UnreadMessageCount++;
+                chatroomStatus.LatestMessageTime = Clock.Now;
+                UpdateChatroomStatusCache(chatbotId, clientId, chatroomStatus);
+            }
+
+            return chatroomStatus;
+        }
+
+        protected async Task<NlpCbQAAccuracy> SaveNlpCbQAAccuracy(NlpCbMessage receivedMessage, List<AllPredictMessages> predictResult)
+        {
+            var nlpChatbot = _nlpChatbotFunction.GetChatbotDto(receivedMessage.NlpChatbotId.Value);
+
+            if (nlpChatbot == null || nlpChatbot.Disabled)
+                return null;
+
+            using (CurrentUnitOfWork.SetTenantId(nlpChatbot.TenantId))
+            {
+                using (CurrentUnitOfWork.DisableFilter(AbpDataFilters.MustHaveTenant, AbpDataFilters.MayHaveTenant))
+                {
+                    NlpCbQAAccuracy nlpAccuracy = new NlpCbQAAccuracy()
+                    {
+                        CreationTime = Clock.Now,
+                        CreatorUserId = null,
+                        Question = receivedMessage.NlpMessage,
+                        TenantId = nlpChatbot.TenantId,
+                        NlpChatbotId = nlpChatbot.Id
+                    };
+
+                    int nIndex = 0;
+                    foreach (var item in predictResult)
+                    {
+                        var probability = item.ChatbotPredictResult.probability;
+
+                        //if (nlpChatbot.ModelAccu>=0.1 && nlpChatbot.ModelAccu <= 1)
+                        //{
+                        //    probability = Math.Min(probability / nlpChatbot.ModelAccu,1);
+                        //}
+
+                        switch (nIndex)
+                        {
+                            case 0:
+                                nlpAccuracy.AnswerAcc1 = probability;
+                                nlpAccuracy.AnswerId1 = item.ChatbotPredictResult.QaId;
+                                break;
+                            case 1:
+                                nlpAccuracy.AnswerAcc2 = probability;
+                                nlpAccuracy.AnswerId2 = item.ChatbotPredictResult.QaId;
+                                break;
+                            case 2:
+                                nlpAccuracy.AnswerAcc3 = probability;
+                                nlpAccuracy.AnswerId3 = item.ChatbotPredictResult.QaId;
+                                break;
+                            default:
+                                continue;
+                        }
+                        nIndex++;
+                    }
+
+                    return await _nlpCbQAAccuracyRepository.InsertAsync(nlpAccuracy);
+                }
+            }
+        }
+
+        //檢查NNID1及NNID2是否指向相同的答案
+        protected async Task<bool> IsSameNNID(Guid chatbotId, int nnid1, int nnid2)
+        {
+            try
+            {
+                Dictionary<int, int[]> nnidDic = await GetAnswerFromNNIDRepetition(chatbotId);
+
+                if (nnidDic != null && nnidDic[nnid1].Contains(nnid2))
+                    return true;
+            }
+            catch (Exception)
+            {
+            }
+            return false;
+        }
+
+        private async Task<NlpQADto> GetNlpQADtofromNNID(Guid chatbotId, int nnid)
+        {
+            Debug.Assert(chatbotId != Guid.Empty);
+
+            var nlpQADto =
+                (NlpQADto)_cacheManager.Get_NlpQADtoFromNNID(chatbotId, nnid)
+                ??
+               (NlpQADto)_cacheManager.Set_NlpQADtoFromNNID(chatbotId, nnid,
+               ObjectMapper.Map<NlpQADto>(await _nlpQARepository.FirstOrDefaultAsync(e => e.NlpChatbotId == chatbotId && e.NNID == nnid)));
+
+            return nlpQADto;
+        }
+
+        protected async Task<string> GetAnswerFromNNIDRepetition(Guid chatbotId, int nnid)
+        {
+            List<int> nnidLists;
+
+            var nnidRepetition = await GetAnswerFromNNIDRepetition(chatbotId);
+
+            if (nnidRepetition != null && nnidRepetition.ContainsKey(nnid) == true)
+                nnidLists = nnidRepetition[nnid].ToList();
+            else
+            {
+                nnidLists = new List<int>();
+                nnidLists.Add(nnid);
+            }
+
+            List<string> answers = new List<string>();
+
+            foreach (var nnidListItem in nnidLists)
+            {
+                var nlpQADto = await GetNlpQADtofromNNID(chatbotId, nnidListItem);
+                string jsonAnswers = nlpQADto?.Answer;
+
+                if (jsonAnswers != null)
+                {
+                    answers.AddRange(JsonToAnswer(jsonAnswers));
+                }
+            }
+
+            if (answers.Count == 0)
+                return null;
+
+            Random random = new Random();
+            int start = random.Next(0, answers.Count);
+            return answers[start];
+        }
+
+        protected async Task<string> ChatGPT(Guid chatbotId, string question, string answer)
+        {
+            var chatbot = _nlpChatbotFunction.GetChatbotDto(chatbotId);
+            if (chatbot == null || chatbot.Disabled || chatbot.EnableOPENAI == (int)NlpChatbotConsts.EnableGPTType.Disabled )
+                return answer;
+
+            try
+            {
+                if (answer.ToUpper().Contains("[GPT]"))
+                {
+                    var newQuestion = answer
+                        .Replace("[GPT]", "", StringComparison.OrdinalIgnoreCase)
+                        .Replace("[Question]", question, StringComparison.OrdinalIgnoreCase)
+                        .Replace("[Answer]", answer, StringComparison.OrdinalIgnoreCase);
+
+                    var chatResult = await _openAIClient.Chat(chatbotId, newQuestion);
+                    if (chatResult != null)
+                    {
+                        var semaphoreSlim = await _nlpPolicyAppService.GetMessageSendQuotaSemaphoreSlim(chatbot.TenantId);
+
+                        InferenctSlime(semaphoreSlim, chatResult.cost);
+                        return chatResult.text;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Fatal(ex.ToString(), ex);
+            }
+
+            return answer;
+        }
+
+
+        protected async Task<Dictionary<int, int[]>> GetAnswerFromNNIDRepetition(Guid chatbotId)
+        {
+            var nnidRepetition = (Dictionary<int, int[]>)_cacheManager.Get_NlpNNIDRepetition(chatbotId);
+
+            if (nnidRepetition == null)
+            {
+                var data = await _nlpCbTrainingDataRepository.FirstOrDefaultAsync(e => e.NlpChatbotId == chatbotId);
+                if (data != null && string.IsNullOrEmpty(data.NlpNNIDRepetition) == false)
+                {
+                    nnidRepetition = JsonConvert.DeserializeObject<Dictionary<int, int[]>>(data.NlpNNIDRepetition);
+                    _cacheManager.Set_NlpNNIDRepetition(chatbotId, nnidRepetition);
+                }
+            }
+
+            return nnidRepetition;
+        }
+
+        //private bool IsSameWordSegment(int chatbotTenantId, Guid chatbotId, string language, string str1, string str2)
+        //{
+        //    if (string.Compare(str1, str2, true) == 0)
+        //        return true;
+
+        //    var s1 = _nlpCbDictionariesFunction.PrepareSynonymString(chatbotTenantId, chatbotId, language, (Guid.Empty, str1));
+
+        //    var s2 = _nlpCbDictionariesFunction.PrepareSynonymString(chatbotTenantId, chatbotId, language, (Guid.Empty, str2));
+
+        //    return false;
+        //}
+
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="input"></param>
+        /// <param name="days"></param>
+        /// <param name="bUnreadOnly">只要未讀的</param>
+        /// <returns></returns>
+        public async Task<IList<ChatbotMessageManagerMessageDto>> GetNlpCbMessageFromDatabase(Guid chatbotId, Guid clientId, int days = 30, bool bUnreadOnly = false)
+        {
+            DateTime dt = Clock.Now.AddDays(-days);
+
+            var nlpChatbot = _nlpChatbotFunction.GetChatbotDto(chatbotId);
+            if (nlpChatbot == null || nlpChatbot.Disabled)
+                return null;
+
+            await CurrentUnitOfWork.SaveChangesAsync();
+
+            using (CurrentUnitOfWork.DisableFilter(AbpDataFilters.MustHaveTenant, AbpDataFilters.MayHaveTenant))
+            {
+                var nlpCbMessagesQuery = await
+                    (from o in _nlpCbMessageRepository.GetAll()
+
+                     join o1 in _nlpCbQAAccuracyRepository.GetAll().Include(e => e.AnswerId1Fk).Include(e => e.AnswerId2Fk).Include(e => e.AnswerId3Fk)
+                     on o.QAAccuracyId equals o1.Id into j1
+                     from s1 in j1.DefaultIfEmpty()
+
+                     join o2 in _nlpClientInfo.GetAll() on o.ClientId equals o2.ClientId into j2
+                     from s2 in j2.DefaultIfEmpty()
+
+                     where o.NlpChatbotId == chatbotId && o.ClientId == clientId && o.NlpCreationTime > dt && (bUnreadOnly == false || (o.AgentReadTime == null || o.ClientReadTime == null))
+
+                     select new
+                     {
+                         Message = new ChatbotMessageManagerMessageDto()
+                         {
+                             Id = o.Id,
+                             ClientId = o.ClientId,
+                             ChatbotId = o.NlpChatbotId,
+                             Message = o.NlpMessage,
+                             MessageType = o.NlpMessageType,
+                             ReceiverRole = o.NlpReceiverRole,
+                             SenderRole = o.NlpSenderRole,
+                             SenderTime = o.NlpCreationTime,
+                             AgentId = o.NlpAgentId,
+                             AgentReadTime = o.AgentReadTime,
+                             ClientReadTime = o.ClientReadTime,
+                             AlternativeQuestion = o.AlternativeQuestion,
+
+                             ClientChannel = s2.ClientChannel,
+                             ConnectionProtocol = s2.ConnectionProtocol
+                         },
+                         QAAccuracyId = o.QAAccuracyId,
+                         acc1 = s1.AnswerAcc1,
+                         acc2 = s1.AnswerAcc2,
+                         acc3 = s1.AnswerAcc3,
+                         Answer1 = s1.AnswerId1Fk.Answer,
+                         Answer2 = s1.AnswerId2Fk.Answer,
+                         Answer3 = s1.AnswerId3Fk.Answer,
+                         NlpCreationTime = o.NlpCreationTime
+                     }).Distinct().OrderByDescending(e => e.NlpCreationTime).Take(30).Reverse().ToListAsync();
+
+                //var nlpCbMessages = nlpCbMessagesQuery.Reverse();
+                var nlpCbMessages = new List<ChatbotMessageManagerMessageDto>();
+
+                foreach (var message in nlpCbMessagesQuery)
+                {
+                    if (message.acc1.HasValue && message.acc1.Value > 0.3 && message.Answer1.IsNullOrEmpty() == false)
+                    {
+                        message.Message.MessageDetails ??= new List<ChatbotMessageDetails>();
+                        message.Message.MessageDetails.Add(new ChatbotMessageDetails()
+                        {
+                            Acc = message.acc1.Value,
+                            Messages = await ReplaceCustomStringAsync(JsonToAnswer(message.Answer1), chatbotId)
+                            //(JsonConvert.DeserializeObject<IList<string>>(message.Answer1), chatbotId)
+                        });
+                    }
+
+                    if (message.acc2.HasValue && message.acc2.Value > 0.3 && message.Answer2.IsNullOrEmpty() == false)
+                    {
+                        message.Message.MessageDetails ??= new List<ChatbotMessageDetails>();
+                        message.Message.MessageDetails.Add(new ChatbotMessageDetails()
+                        {
+                            Acc = message.acc2.Value,
+                            Messages = await ReplaceCustomStringAsync(JsonToAnswer(message.Answer2), chatbotId)
+                        });
+                    }
+
+                    if (message.acc3.HasValue && message.acc3.Value > 0.3 && message.Answer3.IsNullOrEmpty() == false)
+                    {
+                        message.Message.MessageDetails ??= new List<ChatbotMessageDetails>();
+                        message.Message.MessageDetails.Add(new ChatbotMessageDetails()
+                        {
+                            Acc = message.acc3.Value,
+                            Messages = await ReplaceCustomStringAsync(JsonToAnswer(message.Answer3), chatbotId)
+                        });
+                    }
+
+                    NlpUserNameImage receiver = await GetNameImage(message.Message.ReceiverRole, message.Message.ReceiverRole == "client" ? message.Message.ClientId : message.Message.ReceiverRole == "chatbot" ? message.Message.ChatbotId : null, message.Message.AgentId, "");
+
+                    message.Message.ReceiverName = receiver.Name;
+                    message.Message.ReceiverImage = receiver.Image;
+                    message.Message.ReceiverImage ??= "/Common/Images/default-profile-picture.png";
+
+                    NlpUserNameImage sender = await GetNameImage(message.Message.SenderRole,
+                    message.Message.SenderRole == "client" ? message.Message.ClientId : message.Message.SenderRole == "chatbot" ? message.Message.ChatbotId : null, message.Message.AgentId, message.Message.ClientChannel);
+                    message.Message.SenderName = sender.Name;
+                    message.Message.SenderImage = sender.Image;
+                    message.Message.SenderImage ??= "/Common/Images/default-profile-picture.png";
+
+
+                    nlpCbMessages.Add(message.Message);
+                }
+
+                return nlpCbMessages;
+            }
+        }
+
+
+        public async Task<IList<ChatbotMessageManagerMessageDto>> GetMessagesByHttp(ChatbotMessageManagerMessageDto input)
+        {
+            //傳送未讀的Message至Agents跟Client
+            IList<ChatbotMessageManagerMessageDto> messages = await GetNlpCbMessageFromDatabase(input.ChatbotId.Value, input.ClientId.Value, 7, true);
+
+            //設為已讀
+            if (input.ChatbotId != null && input.ClientId != null)
+            {
+                DateTime dt30 = Clock.Now.AddDays(-30);
+                //var filteredNlpCbMessages = _nlpCbMessageRepository.GetAll()
+                //            .Where(e => e.NlpChatbotId == input.ChatbotId.Value && e.ClientId == input.ClientId && e.NlpCreationTime > dt30 && (e.ClientReadTime == null || e.AlternativeQuestion != null));
+
+                //foreach (var nlpCbMessage in filteredNlpCbMessages)
+                //{
+                //    nlpCbMessage.ClientReadTime = DateTime.Now;
+                //    nlpCbMessage.AlternativeQuestion = null;
+                //}
+                //context.Items.Where(a => a.ItemId <= 500).BatchUpdateAsync(new Item { Description = "Updated" });
+
+                await _nlpCbMessageRepository.BatchUpdateAsync(
+                    e => new NlpCbMessage { AlternativeQuestion = null, ClientReadTime = Clock.Now },
+                    e => e.NlpChatbotId == input.ChatbotId.Value && e.ClientId == input.ClientId && e.NlpCreationTime > dt30 && (e.ClientReadTime == null || e.AlternativeQuestion != null));
+            }
+
+            var clientMessages = messages.Where(e => e.ClientReadTime == null && e.ReceiverRole == "client").ToList();
+
+            var chatroomStatus = await GetChatroomStatus(input.ChatbotId.Value, input.ClientId.Value);
+            foreach (var message in clientMessages)
+                message.FailedCount = chatroomStatus.IncorrectAnswerCount;
+
+            if (chatroomStatus.WfState != Guid.Empty)
+            {
+                var workflowStatus = await GetNlpWorkflowStateInfo(chatroomStatus.WfState);
+                if (workflowStatus != null)
+                {
+                    foreach (var message in clientMessages)
+                    {
+                        message.Workflow = workflowStatus.NlpWorkflowName;
+                        message.WorkflowState = workflowStatus.StateName;
+                    }
+                }
+            }
+
+            return clientMessages;
+        }
+
+
+        public void SendErrorMessage(IClientProxy client, string errorMessage)
+        {
+            var dto = new ChatbotMessageManagerMessageDto()
+            {
+                Message = errorMessage,
+            };
+
+            _chatbotCommunicator.SendMessageToClient(client, "errorMessage", dto.ToDictionary());
+        }
+
+        private async Task SendAgesntsClientNonReadMessage(Guid chatbotId, Guid clientId, IList<ChatbotMessageManagerMessageDto> messages, bool sentClient)
+        {
+            //送至Client
+            if (sentClient)
+            {
+                var connectionProtocol = (await GetChatroomStatus(chatbotId, clientId)).ConnectionProtocol;
+
+                if (connectionProtocol == "signal-r" || connectionProtocol == "line" || connectionProtocol == "facebook" || connectionProtocol.IsNullOrEmpty() == true)
+                {
+                    var clientMessages = messages.Where(e => e.ClientReadTime == null && (e.SenderRole == "client" || e.ReceiverRole == "client")).ToList();
+                    if (clientMessages.Count > 0)
+                    {
+                        if (connectionProtocol == "line")
+                        {
+                            try
+                            {
+                                var lineUser = _nlpLineUsersAppService.GetNlpLineUserDto(clientId);
+                                var chatbot = _nlpChatbotFunction.GetChatbotDto(chatbotId);
+                                var bot = new isRock.LineBot.Bot(chatbot.LineToken);
+
+                                foreach (var message in clientMessages)
+                                    if (message.ReceiverRole == "client")
+                                        bot.PushMessage(lineUser.UserId, new isRock.LineBot.TextMessage(StripHTML(message.Message)));
+
+                                await OnClientSendReceipt(chatbotId, clientId);
+                            }
+                            catch (Exception)
+                            {
+                            }
+                        }
+                        else if (connectionProtocol == "facebook")
+                        {
+                            try
+                            {
+                                var facebookUser = _nlpFacebookUsersAppService.GetNlpFacebookUserDto(clientId);
+                                var chatbot = _nlpChatbotFunction.GetChatbotDto(chatbotId);
+
+                                _clientMessenger ??= new ClientMessenger(chatbot.FacebookAccessToken, chatbot.FacebookSecretKey);
+
+                                foreach (var message in clientMessages)
+                                {
+                                    if (message.ReceiverRole == "client")
+                                    {
+                                        var result = await _clientMessenger.SendMessageAsync(facebookUser.UserId, new ReflectSoftware.Facebook.Messenger.Common.Models.Client.TextMessage(StripHTML(message.Message)), ReflectSoftware.Facebook.Messenger.Common.Enums.NotificationType.Regular, null, null);
+                                    }
+                                }
+
+                                await OnClientSendReceipt(chatbotId, clientId);
+                            }
+                            catch (Exception)
+                            {
+                            }
+                        }
+                        else
+                        {
+                            var connection = (NlpClientConnection)_cacheManager.Get_NlpClientConnection_By_ChatbotId_ClientId(chatbotId, clientId);
+
+                            if (connection != null)
+                            {
+                                var client = _onlineClientManager.GetByConnectionIdOrNull(connection.ConnectionId);
+                                if (client != null)
+                                    _chatbotCommunicator.SendMessageToClient(client, "receiveMessages", ChatbotMessageManagerMessageDto.ToDictionary(clientMessages));
+                            }
+                        }
+                    }
+                }
+            }
+
+            //送至Agents
+            var agentMessages = messages.Where(e => e.AgentReadTime == null).ToList();
+            if (agentMessages.Count > 0)
+            {
+                await SendMessageToChatroomAgents(chatbotId, clientId, "agentGetChatbotMessages", agentMessages);
+            }
+        }
+
+
+        private async Task SendAgesntsSuggestedAnswers(Guid chatbotId, Guid clientId, IList<ChatbotMessageManagerMessageDto> messages)
+        {
+            if (messages.Count > 0)
+                await SendMessageToChatroomAgents(chatbotId, clientId, "suggestedAnswers", messages);
+        }
+
+        private async Task DeferredSendAgentUnfoundMessageAnswer(Guid chatbotId, Guid clientId)
+        {
+            var errorMessage = await GetUnfoundMessageAsync(chatbotId, clientId, null, null, null);
+            if (errorMessage == null)
+                return;
+
+            var chatroomStatus = await GetChatroomStatus(chatbotId, clientId);
+            var errorMessageDto = new ChatbotMessageManagerMessageDto()
+            {
+                Id = Guid.NewGuid(),
+                ClientId = errorMessage.ClientId,
+                ChatbotId = errorMessage.NlpChatbotId,
+                Message = null,
+                MessageType = errorMessage.NlpMessageType,
+                ReceiverRole = "agent",
+                SenderRole = errorMessage.NlpSenderRole,
+                SenderTime = errorMessage.NlpCreationTime,
+                AgentId = errorMessage.NlpAgentId ?? chatroomStatus?.ChatroomAgents?[0]?.AgentId,
+                AgentTenantId = errorMessage.TenantId,
+                AgentReadTime = errorMessage.AgentReadTime,
+                ClientReadTime = errorMessage.ClientReadTime,
+                SuggestedAnswers = JsonConvert.SerializeObject(new string[] { errorMessage.NlpMessage })
+            };
+
+            _deferredSendMessageToChatroomAgent ??= new List<ChatbotMessageManagerMessageDto>();
+            _deferredSendMessageToChatroomAgent.Add(errorMessageDto);
+        }
+
+
+        [DisableAuditing]
+        public async Task SendClientHistoryMessages(IClientProxy caller, ChatbotMessageManagerMessageDto input)
+        {
+            await AddNlpClientConnectionCache(new NlpClientConnection()
+            {
+                ClientId = input.ClientId.Value,
+                ChatbotId = input.ChatbotId.Value,
+                ConnectionId = input.ConnectionId,
+                UpdatedTime = Clock.Now,
+                AgentId = input.AgentId,
+                Connected = true,
+                ClientIP = input.ClientIP,
+                ClientChannel = input.ClientChannel
+            });
+
+            var nlpCbMessages = (await GetNlpCbMessageFromDatabase(input.ChatbotId.Value, input.ClientId.Value))
+                .Where(e => e.SenderRole == "client" || e.ReceiverRole == "client").ToList();
+
+            if (nlpCbMessages != null && nlpCbMessages.Count > 0)
+            {
+                _chatbotCommunicator.SendMessageToClient(caller, "receiveMessages",
+                    ChatbotMessageManagerMessageDto.ToDictionary(nlpCbMessages));
+            }
+        }
+
+        [DisableAuditing]
+        public async Task SendClientGreetingMessage(IClientProxy caller, ChatbotMessageManagerMessageDto input)
+        {
+            await AddNlpClientConnectionCache(new NlpClientConnection()
+            {
+                ClientId = input.ClientId.Value,
+                ChatbotId = input.ChatbotId.Value,
+                ConnectionId = input.ConnectionId,
+                UpdatedTime = Clock.Now,
+                AgentId = input.AgentId,
+                Connected = true,
+                ClientIP = input.ClientIP,
+                ClientChannel = input.ClientChannel
+            });
+
+            ChatbotMessageManagerMessageDto messageDto = null;
+            var nlpChatbot = _nlpChatbotFunction.GetChatbotDto(input.ChatbotId.Value);
+
+            if (nlpChatbot == null || nlpChatbot.Disabled || nlpChatbot.GreetingMsg.IsNullOrEmpty())
+                return;
+
+            messageDto = new ChatbotMessageManagerMessageDto()
+            {
+                Id = Guid.NewGuid(),
+                ClientId = input.ClientId,
+                ChatbotId = input.ChatbotId,
+                Message = await ReplaceCustomStringAsync(nlpChatbot.GreetingMsg.Replace("${Chatbot.Name}", nlpChatbot.Name), input.ChatbotId.Value),
+                MessageType = ChatbotMessageType.TEXT,
+                ReceiverRole = input.ReceiverRole,
+                SenderImage = "/Chatbot/ProfilePicture/" + input.ChatbotId.ToString(),
+                SenderRole = "chatbot",
+                SenderTime = Clock.Now,
+                AgentId = input.AgentId,
+            };
+
+            var chatroomStatus = await GetChatroomStatus(input.ChatbotId.Value, input.ClientId.Value);
+            SendChatroomStatusToAgents(nlpChatbot.TenantId, chatroomStatus);
+
+            var messages = new List<ChatbotMessageManagerMessageDto>(1);
+            messages.Add(messageDto);
+            _chatbotCommunicator.SendMessageToClient(caller, "receiveMessages", ChatbotMessageManagerMessageDto.ToDictionary(messages));
+        }
+
+        [DisableAuditing]
+        public async Task AgentRequestHistoryMessages(ChatbotMessageManagerMessageDto input)
+        {
+            if (input.AgentId != AbpSession.UserId || input.AgentTenantId != AbpSession.TenantId || input.ChatbotId == null || input.ClientId == null)
+                return;
+
+            AddNlpAgentConnectionCache(new NlpAgentConnection()
+            {
+                ClientId = input.ClientId.Value,
+                ChatbotId = input.ChatbotId.Value,
+                ConnectionId = input.ConnectionId,
+                UpdatedTime = Clock.Now,
+                AgentId = input.AgentId.Value,
+                AgentTenantId = input.AgentTenantId.Value,
+                Connected = true,
+            });
+
+            await AddRemoveAgentFromChatroom(true, new NlpAgentInChatroom(input.AgentId.Value, input.ChatbotId.Value, input.ClientId.Value), null);
+
+            //送至Agents
+            var agentMessages = await GetNlpCbMessageFromDatabase(input.ChatbotId.Value, input.ClientId.Value);
+            if (agentMessages.Count > 0)
+            {
+                await SendMessageToChatroomAgents(input.ChatbotId.Value, input.ClientId.Value, "agentGetChatbotMessages", agentMessages);
+            }
+        }
+
+        private async Task SendMessageToChatroomAgents(Guid chatbotId, Guid clientId, string messageName, IList<ChatbotMessageManagerMessageDto> messages)
+        {
+            var chatroomStatus = await GetChatroomStatus(chatbotId, clientId);
+            if (chatroomStatus.ChatroomAgents == null || chatroomStatus.ChatroomAgents.Count == 0)
+                return;
+
+            foreach (var message in messages)
+            {
+                NlpUserNameImage receiverNameImage = await GetNameImage(message.ReceiverRole, message.ReceiverRole == "client" ? message.ClientId : message.ReceiverRole == "chatbot" ? message.ChatbotId : null, message.AgentId, message.ClientChannel);
+                message.ReceiverName = receiverNameImage.Name;
+                message.ReceiverImage = receiverNameImage.Image;
+
+                NlpUserNameImage senderNameImage = await GetNameImage(message.SenderRole, message.SenderRole == "client" ? message.ClientId : message.SenderRole == "chatbot" ? message.ChatbotId : null, message.AgentId, message.ClientChannel);
+                message.SenderName = senderNameImage.Name;
+                message.SenderImage = senderNameImage.Image;
+            }
+
+            List<IOnlineClient> onlineClientList = new List<IOnlineClient>();
+
+            foreach (var agent in chatroomStatus.ChatroomAgents)
+            {
+                var nlpAgentConnection = (NlpAgentConnection)_cacheManager.Get_NlpAgentConnection_By_ChatbotId_ClientId_UserId(chatroomStatus.ChatbotId, chatroomStatus.ClientId, agent.AgentId);
+
+                //移除已斷線的Agents
+                if (nlpAgentConnection == null || nlpAgentConnection.ConnectionId.IsNullOrEmpty())
+                {
+                    await AddRemoveAgentFromChatroom(false, new NlpAgentInChatroom() { AgentId = agent.AgentId, Chatroom = new NlpChatroom() { ChatbotId = chatroomStatus.ChatbotId, ClientId = chatroomStatus.ClientId } }, chatroomStatus);
+                    RemoveAgentConnectionFromCache(nlpAgentConnection);
+                    continue;
+                }
+
+                var onlineClient = _onlineClientManager.GetByConnectionIdOrNull(nlpAgentConnection.ConnectionId);
+                if (onlineClient != null)
+                    onlineClientList.Add(onlineClient);
+                else
+                {
+                    await AddRemoveAgentFromChatroom(false, new NlpAgentInChatroom() { AgentId = agent.AgentId, Chatroom = new NlpChatroom() { ChatbotId = chatroomStatus.ChatbotId, ClientId = chatroomStatus.ClientId } }, chatroomStatus);
+                    RemoveAgentConnectionFromCache(nlpAgentConnection);
+                }
+            }
+
+            if (onlineClientList.Count > 0)
+                _chatbotCommunicator.SendMessageToClients(onlineClientList, messageName, ChatbotMessageManagerMessageDto.ToDictionary(messages));
+        }
+
+        /// <summary>
+        /// 取得Client, Agent或Chatbot的頭像或名字
+        /// </summary>
+        /// <param name="role"></param>
+        /// <param name="id"></param>
+        /// <param name="userId"></param>
+        /// <returns></returns>
+        private async Task<NlpUserNameImage> GetNameImage(string role, Guid? id, long? userId, string channel)
+        {
+            NlpUserNameImage nameImage = new NlpUserNameImage();
+
+            switch (role)
+            {
+                case "client":
+                    nameImage.Name = "";
+                    nameImage.Image = "/Common/Images/default-profile-picture.png";
+
+                    if (channel == "line")
+                    {
+                        var lineUser = _nlpLineUsersAppService.GetNlpLineUserDto(id.Value);
+                        if (lineUser != null)
+                        {
+                            if (lineUser.UserName.IsNullOrEmpty() == false)
+                                nameImage.Name = lineUser.UserName;
+                            if (lineUser.PictureUrl.IsNullOrEmpty() == false)
+                                nameImage.Image = lineUser.PictureUrl;
+                        }
+                    }
+                    else if (channel == "facebook")
+                    {
+                        var facebookUser = _nlpFacebookUsersAppService.GetNlpFacebookUserDto(id.Value);
+                        if (facebookUser != null)
+                        {
+                            if (facebookUser.UserName.IsNullOrEmpty() == false)
+                                nameImage.Name = facebookUser.UserName;
+                            if (facebookUser.PictureUrl.IsNullOrEmpty() == false)
+                                nameImage.Image = facebookUser.PictureUrl;
+                        }
+                    }
+
+
+                    break;
+                case "chatbot":
+                    var nlpChatbot = _nlpChatbotFunction.GetChatbotDto(id.Value);
+                    if (nlpChatbot != null)
+                    {
+                        nameImage.Name = nlpChatbot.Name;
+                        nameImage.Image = "/Chatbot/ProfilePicture/" + nlpChatbot.ChatbotPictureId.ToString();
+                    }
+                    else
+                    {
+                        nameImage.Name = "/Chatbot/ProfilePicture";
+                        nameImage.Image = "";
+                    }
+                    break;
+                case "agent":
+                    var agent = await GetAgentNamePicture(userId.Value);
+                    nameImage.Name = agent.AgentName;
+                    nameImage.Image = "/Chatbot/GetProfilePictureById/" + agent.AgentPictureId.ToString();
+                    break;
+            }
+            return nameImage;
+        }
+
+
+        /// <summary>
+        /// Agent User送訊號至Server
+        /// </summary>
+        /// <param name="caller"></param>
+        /// <param name="input"></param>
+        [DisableAuditing]
+        public async Task ReceiveAgentMessage(ChatbotMessageManagerMessageDto input)
+        {
+            if (this.IsGranted(AppPermissions.Pages_NlpChatbot_NlpCbAgentOperations_SendMessage) == false)
+                return;
+
+            //_lpCbWebApiClient.PrepareQueryPython();
+
+            AddNlpAgentConnectionCache(new NlpAgentConnection()
+            {
+                ClientId = input.ClientId.Value,
+                ChatbotId = input.ChatbotId.Value,
+                ConnectionId = input.ConnectionId,
+                UpdatedTime = Clock.Now,
+                AgentId = input.AgentId.Value,
+                AgentTenantId = input.AgentTenantId.Value,
+                Connected = true,
+            });
+
+            //AddRemoveAgentFromChatroom(true, new NlpAgentInChatroom(input.AgentId.Value, input.ChatbotId.Value, input.ClientId.Value), null);
+
+            //取得Chatbot回覆
+            input.MessageType ??= "text";
+            input.SenderTime ??= Clock.Now;
+
+            if (string.IsNullOrEmpty(input.SenderRole))
+                input.SenderRole = "agent";
+
+            List<NlpCbMessageEx> nlpCbMessageExList = await ProcessReceiveMessage(input);
+
+            //傳送ChatroomStatus至Agents
+            if (input.ReceiverRole == "client")
+            {
+                var chatbot = _nlpChatbotFunction.GetChatbotDto(input.ChatbotId.Value);
+                var chatroomStatus = await GetChatroomStatus(input.ChatbotId.Value, input.ClientId.Value);
+
+                _cacheManager.Set_ChatbotController_GetMessages_HasData(chatbot.TenantId, input.ClientId.Value, true);
+
+                if (chatroomStatus != null)
+                {
+                    if (chatroomStatus.UnreadMessageCount != 0)
+                    {
+                        chatroomStatus.UnreadMessageCount = 0;
+                        UpdateChatroomStatusCache(input.ChatbotId.Value, input.ClientId.Value, chatroomStatus);
+                        SendChatroomStatusToAgents(chatbot.TenantId, chatroomStatus);
+                    }
+
+                    input.ClientId = chatroomStatus.ClientId;
+                }
+            }
+
+            //傳送未讀的Message至Agents跟Client
+            IList<ChatbotMessageManagerMessageDto> messages = await GetNlpCbMessageFromDatabase(input.ChatbotId.Value, input.ClientId.Value, 1, true);
+
+            await SendAgesntsClientNonReadMessage(input.ChatbotId.Value, input.ClientId.Value, messages, true);
+
+            if (input.ReceiverRole == "chatbot")
+            {
+                if (nlpCbMessageExList != null)
+                {
+                    foreach (var nlpCbMessageEx in nlpCbMessageExList)
+                    {
+                        var output = input;
+                        output.ReceiverRole = "agent";
+                        output.SenderRole = "chatbot";
+                        output.Message = "";
+                        output.SuggestedAnswers = JsonConvert.SerializeObject(nlpCbMessageEx.SuggestedAnswers);
+
+                        var messageList = new List<ChatbotMessageManagerMessageDto>();
+                        messageList.Add(output);
+
+                        await SendAgesntsSuggestedAnswers(input.ChatbotId.Value, input.ClientId.Value, messageList);
+                    }
+                }
+
+                if (_deferredSendMessageToChatroomAgent != null)
+                    await SendAgesntsSuggestedAnswers(input.ChatbotId.Value, input.ClientId.Value, _deferredSendMessageToChatroomAgent);
+            }
+
+            //_lpCbWebApiClient.PrepareQueryPython();
+        }
+
+
+        [DisableAuditing]
+        public async Task OnAgentSendReceipt(ChatbotMessageManagerMessageDto input)
+        {
+            if (input.AgentId != AbpSession.UserId || input.AgentTenantId != AbpSession.TenantId || input.ChatbotId == null || input.ClientId == null)
+                return;
+
+            AddNlpAgentConnectionCache(new NlpAgentConnection()
+            {
+                ClientId = input.ClientId.Value,
+                ChatbotId = input.ChatbotId.Value,
+                ConnectionId = input.ConnectionId,
+                UpdatedTime = Clock.Now,
+                AgentId = input.AgentId.Value,
+                AgentTenantId = input.AgentTenantId.Value,
+                Connected = true,
+            });
+
+            await AddRemoveAgentFromChatroom(true, new NlpAgentInChatroom(input.AgentId.Value, input.ChatbotId.Value, input.ClientId.Value), null);
+
+
+            DateTime dt30 = Clock.Now.AddDays(-30);
+
+            await _nlpCbMessageRepository.BatchUpdateAsync(
+                e => new NlpCbMessage { AlternativeQuestion = null, AgentReadTime = Clock.Now },
+                e => e.NlpChatbotId == input.ChatbotId.Value && e.ClientId == input.ClientId && e.NlpCreationTime > dt30 && e.AgentReadTime == null);
+
+            var chatroom = await GetChatroomStatus(input.ChatbotId.Value, input.ClientId.Value);
+            chatroom.UnreadMessageCount = 0;
+
+            SendChatroomStatusToAgents(input.AgentTenantId.Value, chatroom);
+        }
+
+
+        [DisableAuditing]
+        public async Task OnClientSendReceipt(Guid chatbotId, Guid clientId)
+        {
+            //設Client已讀
+            DateTime dt30 = Clock.Now.AddDays(-30);
+
+            await _nlpCbMessageRepository.BatchUpdateAsync(
+                e => new NlpCbMessage { AlternativeQuestion = null, ClientReadTime = Clock.Now },
+                e => e.NlpChatbotId == chatbotId && e.ClientId == clientId && e.NlpCreationTime > dt30 && (e.ClientReadTime == null || e.AlternativeQuestion != null));
+        }
+
+
+        [DisableAuditing]
+        public async Task AgentEnableResponseConfirm(ChatbotMessageManagerMessageDto input, bool enableResponseConfirm)
+        {
+            if (input.AgentId != AbpSession.UserId || input.AgentTenantId != AbpSession.TenantId || input.ChatbotId == null || input.ClientId == null ||
+                IsGranted(AppPermissions.Pages_NlpChatbot_NlpCbAgentOperations_SendMessage) == false)
+                return;
+
+            AddNlpAgentConnectionCache(new NlpAgentConnection()
+            {
+                ClientId = input.ClientId.Value,
+                ChatbotId = input.ChatbotId.Value,
+                ConnectionId = input.ConnectionId,
+                UpdatedTime = Clock.Now,
+                AgentId = input.AgentId.Value,
+                AgentTenantId = input.AgentTenantId.Value,
+                Connected = true,
+            });
+
+            await AddRemoveAgentFromChatroom(true, new NlpAgentInChatroom(input.AgentId.Value, input.ChatbotId.Value, input.ClientId.Value), null);
+
+            var chatroom = await GetChatroomStatus(input.ChatbotId.Value, input.ClientId.Value);
+            if (chatroom.UnreadMessageCount != 0 || chatroom.ResponseConfirmEnabled != enableResponseConfirm)
+            {
+                chatroom.UnreadMessageCount = 0;
+                chatroom.ResponseConfirmEnabled = enableResponseConfirm;
+                UpdateChatroomStatusCache(input.ChatbotId.Value, input.ClientId.Value, chatroom);
+                SendChatroomStatusToAgents(input.AgentTenantId.Value, chatroom);
+            }
+        }
+
+
+        /// <summary>
+        /// 將人員加入或退出聊天室
+        /// </summary>
+        /// <param name="add">加入或退出</param>
+        /// <param name="chatroomAgent"></param>
+        /// <param name="chatroomStatus">如果是空白，從資料庫取得</param>
+        public async Task<NlpChatroomStatus> AddRemoveAgentFromChatroom(bool add, NlpAgentInChatroom chatroomAgent, NlpChatroomStatus chatroomStatus)
+        {
+            bool bNeedUpdate = false;
+
+            chatroomStatus ??= await GetChatroomStatus(chatroomAgent.Chatroom.ChatbotId, chatroomAgent.Chatroom.ClientId);
+            chatroomStatus.ChatroomAgents ??= new List<NlpChatroomAgent>();
+
+            NlpChatbotDto nlpChatbot = null;
+
+            //檢查Client是否已離線
+            if (chatroomStatus.ClientConnected == true)
+            {
+                var clientConnection = (NlpClientConnection)_cacheManager.Get_NlpClientConnection_By_ChatbotId_ClientId(chatroomAgent.Chatroom.ChatbotId, chatroomAgent.Chatroom.ClientId);
+
+                if (clientConnection != null && clientConnection.ConnectionId.IsNullOrEmpty() == false)
+                {
+                    var online_connection = _onlineClientManager.GetAllClients().Where(e => e.ConnectionId == clientConnection.ConnectionId).Select(e => e.ConnectionId).FirstOrDefault();
+                    if (online_connection.IsNullOrEmpty())
+                        chatroomStatus.ClientConnected = false;
+                }
+            }
+
+            if (add == false)
+            {
+                _cacheManager.Remove_ChatroomByAgent(chatroomAgent.AgentId);
+
+                if (chatroomStatus.ChatroomAgents.RemoveAll(c => c.AgentId == chatroomAgent.AgentId) > 0)
+                    bNeedUpdate = true;
+            }
+            else
+            {
+                //先移除人員在其它聊天室
+                var currentChatroom = (NlpChatroom)_cacheManager.Get_ChatroomByAgent(chatroomAgent.AgentId);
+                if (currentChatroom != null && (currentChatroom.ChatbotId != chatroomAgent.Chatroom.ChatbotId || currentChatroom.ClientId != chatroomAgent.Chatroom.ClientId))
+                {
+                    var newStatus = await AddRemoveAgentFromChatroom(false, new NlpAgentInChatroom() { AgentId = chatroomAgent.AgentId, Chatroom = currentChatroom }, null);
+                    nlpChatbot ??= _nlpChatbotFunction.GetChatbotDto(chatroomStatus.ChatbotId);
+                    SendChatroomStatusToAgents(nlpChatbot.TenantId, newStatus);
+                }
+
+                if (chatroomStatus.ChatroomAgents.Count(c => c.AgentId == chatroomAgent.AgentId) == 0)
+                {
+                    chatroomStatus.ChatroomAgents.Add(await GetAgentNamePicture(chatroomAgent.AgentId));
+                    _cacheManager.Set_ChatroomByAgent(chatroomAgent.AgentId, new NlpChatroom() { ChatbotId = chatroomStatus.ChatbotId, ClientId = chatroomStatus.ClientId });
+                    bNeedUpdate = true;
+                }
+            }
+
+            //刪除未連線的
+            foreach (var agentId in chatroomStatus.ChatroomAgents)
+            {
+                nlpChatbot ??= _nlpChatbotFunction.GetChatbotDto(chatroomAgent.Chatroom.ChatbotId);
+                UserIdentifier user = new UserIdentifier(nlpChatbot.TenantId, agentId.AgentId);
+
+                if (_onlineClientManager.GetAllByUserId(user).Count == 0)
+                {
+                    chatroomStatus.ChatroomAgents.RemoveAll(c => c.AgentId == agentId.AgentId);
+                    bNeedUpdate = true;
+                }
+            }
+
+            if (bNeedUpdate)
+            {
+                UpdateChatroomStatusCache(chatroomStatus.ChatbotId, chatroomStatus.ClientId, chatroomStatus);
+            }
+            return chatroomStatus;
+        }
+
+
+        public async Task<NlpChatroomStatus> GetChatroomStatus(Guid chatbotId, Guid clientId)
+        {
+            NlpChatroomStatus data = null;
+            bool bNeedUpdate = false;
+
+            if (__nlpChatroomStatusCache != null && __nlpChatroomStatusCache.ChatbotId == chatbotId && __nlpChatroomStatusCache.ClientId == clientId)
+                data = __nlpChatroomStatusCache;
+
+            data ??= (NlpChatroomStatus)_cacheManager.Get_ChatroomStatus(chatbotId, clientId);
+
+            if (data == null)
+            {
+                bNeedUpdate = true;
+                const int days = 30;
+
+                var message = await _nlpCbMessageRepository.GetAll().Where(e => e.NlpChatbotId == chatbotId && e.ClientId == clientId && e.NlpCreationTime > Clock.Now.AddDays(-days)).OrderByDescending(t => t.NlpCreationTime).FirstOrDefaultAsync();
+
+                var chatbot = _nlpChatbotFunction.GetChatbotDto(chatbotId);
+                if (chatbot.Disabled == false && chatbot.IsDeleted == false)
+                {
+                    data = new NlpChatroomStatus()
+                    {
+                        ChatbotId = chatbot.Id,
+                        ChatbotPictureId = chatbot.ChatbotPictureId,
+                        ClientId = clientId,
+                        ChatbotName = chatbot.Name,
+                        LatestMessageTime = message?.NlpCreationTime ?? Clock.Now,
+                        ClientConnected = false,
+                        ResponseConfirmEnabled = false,
+                        IncorrectAnswerCount = 0,
+                    };
+                }
+            }
+
+            if (data == null)
+            {
+                bNeedUpdate = true;
+                data = new NlpChatroomStatus()
+                {
+                    ChatbotId = chatbotId,
+                    ClientId = clientId,
+                    LatestMessageTime = Clock.Now,
+                    ClientConnected = false,
+                    ResponseConfirmEnabled = false,
+                    IncorrectAnswerCount = 0,
+                };
+            }
+
+            //若Client圖像為NULL,設為預設
+            if (data.ClientPicture.IsNullOrEmpty())
+            {
+                data.ClientPicture = "/Common/Images/default-profile-picture.png";
+                bNeedUpdate = true;
+            }
+
+            //更新快取內的名字跟照片
+            var nlpChatbot = _nlpChatbotFunction.GetChatbotDto(chatbotId);
+            if (nlpChatbot.Name != data.ChatbotName && nlpChatbot.ChatbotPictureId != data.ChatbotPictureId)
+            {
+                data.ChatbotName = nlpChatbot.Name;
+                data.ChatbotPictureId = nlpChatbot.ChatbotPictureId;
+                bNeedUpdate = true;
+            }
+
+            //更新快取內的名字跟照片
+            if (data.ChatroomAgents != null && data.ChatroomAgents.Count > 0)
+            {
+                foreach (var agent in data.ChatroomAgents)
+                {
+                    var agentNamePicture = await GetAgentNamePicture(agent.AgentId);
+
+                    if (agent.AgentName != agentNamePicture.AgentName || agent.AgentPictureId != agentNamePicture.AgentPictureId)
+                    {
+                        agent.AgentName = agentNamePicture.AgentName;
+                        agent.AgentPictureId = agentNamePicture.AgentPictureId;
+                        bNeedUpdate = true;
+                    }
+                }
+            }
+
+            var clientInfo = await GetNlpClientInfoDtosCache(nlpChatbot.TenantId, clientId);
+            if (clientInfo != null && data.ConnectionProtocol != clientInfo.ConnectionProtocol && data.ClientIP != clientInfo.IP && data.ClientChannel != clientInfo.ClientChannel)
+            {
+                data.ConnectionProtocol = clientInfo.ConnectionProtocol;
+                data.ClientIP = clientInfo.IP;
+                data.ClientChannel = clientInfo.ClientChannel;
+                bNeedUpdate = true;
+            }
+
+            if (clientInfo != null && (clientInfo.ClientChannel == "line" || clientInfo.ConnectionProtocol == "line"))
+            {
+                var lineUser = _nlpLineUsersAppService.GetNlpLineUserDto(clientId);
+                if (data.ClientName != lineUser.UserName || data.ClientPicture != lineUser.PictureUrl)
+                {
+                    data.ClientName = lineUser.UserName;
+                    data.ClientPicture = lineUser.PictureUrl;
+                    bNeedUpdate = true;
+                }
+            }
+
+            if (clientInfo != null && (clientInfo.ClientChannel == "facebook" || clientInfo.ConnectionProtocol == "facebook"))
+            {
+                var facebookU = _nlpFacebookUsersAppService.GetNlpFacebookUserDto(clientId);
+                if (data.ClientName != facebookU.UserName || data.ClientPicture != facebookU.PictureUrl)
+                {
+                    data.ClientName = facebookU.UserName;
+                    data.ClientPicture = facebookU.PictureUrl;
+                    bNeedUpdate = true;
+                }
+            }
+
+
+            if (bNeedUpdate == true)
+                UpdateChatroomStatusCache(chatbotId, clientId, data);
+
+            return data;
+        }
+
+
+        public NlpChatroomStatus UpdateChatroomStatusCache(Guid chatbotId, Guid clientId, NlpChatroomStatus chatroomStatus)
+        {
+            __nlpChatroomStatusCache = chatroomStatus;
+            return (NlpChatroomStatus)_cacheManager.Set_ChatroomStatus(chatbotId, clientId, chatroomStatus);
+        }
+
+
+        public async Task<NlpClientInfoDto> GetNlpClientInfoDtosCache(int tenantId, Guid clientId)
+        {
+            if (__nlpClientInfoDtoCache != null && __nlpClientInfoDtoCache.TenantId == tenantId && __nlpClientInfoDtoCache.ClientId == clientId)
+                return __nlpClientInfoDtoCache;
+
+            __nlpClientInfoDtoCache = (NlpClientInfoDto)_cacheManager.Get_NlpClientInfoDto(tenantId, clientId);
+            if (__nlpClientInfoDtoCache != null)
+                return __nlpClientInfoDtoCache;
+
+            var nlpClientInfo = await _nlpClientInfo.FirstOrDefaultAsync(e => e.TenantId == tenantId && e.ClientId == clientId);
+
+            if (nlpClientInfo == null)
+                return null;
+
+            __nlpClientInfoDtoCache = ObjectMapper.Map<NlpClientInfoDto>(nlpClientInfo);
+            _cacheManager.Set_NlpClientInfoDto(tenantId, clientId, __nlpClientInfoDtoCache);
+            return __nlpClientInfoDtoCache;
+        }
+
+        public async Task<NlpClientInfoDto> SetNlpClientInfoDtosCache(NlpClientInfoDto dto)
+        {
+            if (dto != null && __nlpClientInfoDtoCache != null && dto.isSame(__nlpClientInfoDtoCache) == true)
+                return dto;
+
+            __nlpClientInfoDtoCache = dto;
+            _cacheManager.Set_NlpClientInfoDto(dto.TenantId, dto.ClientId, dto);
+
+            var nlpClientInfo = await _nlpClientInfo.FirstOrDefaultAsync(e => e.TenantId == dto.TenantId && e.ClientId == dto.ClientId);
+
+            if (nlpClientInfo != null)
+            {
+                dto.Id = nlpClientInfo.Id;
+                dto.UpdatedTime = Clock.Now;
+
+                ObjectMapper.Map(dto, nlpClientInfo);
+            }
+            else
+            {
+                await _nlpClientInfo.InsertAsync(ObjectMapper.Map<NlpClientInfo>(dto));
+            }
+
+            return dto;
+        }
+
+        [DisableAuditing]
+        public async Task ReceiveClientReceipt(ChatbotMessageManagerMessageDto input)
+        {
+            await AddNlpClientConnectionCache(new NlpClientConnection()
+            {
+                ClientId = input.ClientId.Value,
+                ChatbotId = input.ChatbotId.Value,
+                ConnectionId = input.ConnectionId,
+                UpdatedTime = Clock.Now,
+                AgentId = input.AgentId,
+                Connected = true,
+                ClientIP = input.ClientIP,
+                ClientChannel = input.ClientChannel
+            });
+
+            var chatroomStatus = await GetChatroomStatus(input.ChatbotId.Value, input.ClientId.Value);
+            if (chatroomStatus != null && input.ConnectionProtocol.IsNullOrEmpty() == false && chatroomStatus.ConnectionProtocol != input.ConnectionProtocol)
+            {
+                chatroomStatus.ConnectionProtocol = input.ConnectionProtocol;
+                UpdateChatroomStatusCache(input.ChatbotId.Value, input.ClientId.Value, chatroomStatus);
+            }
+
+            DateTime dt30 = Clock.Now.AddDays(-30);
+            if (input.ChatbotId == null || input.ClientId == null)
+                return;
+
+            //var filteredNlpCbMessages = _nlpCbMessageRepository.GetAll()
+            //            .Where(e => e.NlpChatbotId == input.ChatbotId.Value && e.ClientId == input.ClientId && e.NlpCreationTime > dt30 && (e.ClientReadTime == null || e.AlternativeQuestion != null));
+
+            //foreach (var nlpCbMessage in filteredNlpCbMessages)
+            //{
+            //    nlpCbMessage.ClientReadTime = DateTime.Now;
+            //    nlpCbMessage.AlternativeQuestion = null;
+            //}
+
+            await _nlpCbMessageRepository.BatchUpdateAsync(
+                e => new NlpCbMessage { AlternativeQuestion = null, ClientReadTime = Clock.Now },
+                e => e.NlpChatbotId == input.ChatbotId.Value && e.ClientId == input.ClientId && e.NlpCreationTime > dt30 && (e.ClientReadTime == null || e.AlternativeQuestion != null));
+        }
+
+
+        public async Task ClientReconnect(ChatbotMessageManagerMessageDto input)
+        {
+            await AddNlpClientConnectionCache(new NlpClientConnection()
+            {
+                ClientId = input.ClientId.Value,
+                ChatbotId = input.ChatbotId.Value,
+                ConnectionId = input.ConnectionId,
+                UpdatedTime = Clock.Now,
+                AgentId = input.AgentId,
+                Connected = true,
+                ClientIP = input.ClientIP,
+                ClientChannel = input.ClientChannel
+            });
+
+            //傳送ChatroomStatus至Agents
+            var chatbot = _nlpChatbotFunction.GetChatbotDto(input.ChatbotId.Value);
+            var chatroomStatus = await GetChatroomStatus(input.ChatbotId.Value, input.ClientId.Value);
+
+            if (chatroomStatus != null)
+            {
+                if (input.ConnectionProtocol.IsNullOrEmpty() == false && chatroomStatus.ConnectionProtocol != input.ConnectionProtocol)
+                {
+                    chatroomStatus.ConnectionProtocol = input.ConnectionProtocol;
+                    UpdateChatroomStatusCache(input.ChatbotId.Value, input.ClientId.Value, chatroomStatus);
+                }
+                SendChatroomStatusToAgents(chatbot.TenantId, chatroomStatus);
+            }
+
+            //傳送未讀的Message至Agents跟Client
+            IList<ChatbotMessageManagerMessageDto> messages = await GetNlpCbMessageFromDatabase(chatbot.Id, chatroomStatus.ClientId, 1, true);
+
+            await SendAgesntsClientNonReadMessage(chatbot.Id, input.ClientId.Value, messages, true);
+        }
+
+        public async Task AgentReconnect(ChatbotMessageManagerMessageDto input)
+        {
+            if (input.AgentId != AbpSession.UserId || input.AgentTenantId != AbpSession.TenantId || input.ChatbotId == null || input.ClientId == null)
+                return;
+
+            AddNlpAgentConnectionCache(new NlpAgentConnection()
+            {
+                ClientId = input.ClientId.Value,
+                ChatbotId = input.ChatbotId.Value,
+                ConnectionId = input.ConnectionId,
+                UpdatedTime = Clock.Now,
+                AgentId = input.AgentId.Value,
+                AgentTenantId = input.AgentTenantId.Value,
+                Connected = true,
+            });
+
+            await AddRemoveAgentFromChatroom(true, new NlpAgentInChatroom(input.AgentId.Value, input.ChatbotId.Value, input.ClientId.Value), null);
+
+            var chatroomStatus = await GetChatroomStatus(input.ChatbotId.Value, input.ClientId.Value);
+            if (chatroomStatus != null)
+                SendChatroomStatusToAgents(input.AgentTenantId.Value, chatroomStatus);
+        }
+
+
+        [DisableAuditing]
+        public async Task DisconnectNotification(string connectionId)
+        {
+            var clientConnection = (NlpClientConnection)_cacheManager.Get_NlpClientConnection_By_ConnectionId(connectionId);
+            if (clientConnection != null)
+            {
+                await RemoveClientConnectionFromCache(clientConnection);
+
+                var chatroomStatus = await GetChatroomStatus(clientConnection.ChatbotId, clientConnection.ClientId);
+                if (chatroomStatus != null)
+                {
+                    var chatbot = _nlpChatbotFunction.GetChatbotDto(clientConnection.ChatbotId);
+                    SendChatroomStatusToAgents(chatbot.TenantId, chatroomStatus);
+                }
+
+                return;
+            }
+
+            var agentConnection = (NlpAgentConnection)_cacheManager.Get_NlpAgentConnection_By_ConnectionId(connectionId);
+            if (agentConnection != null)
+            {
+                await AddRemoveAgentFromChatroom(false, new NlpAgentInChatroom(agentConnection.AgentId, agentConnection.ChatbotId.Value, agentConnection.ClientId.Value), null);
+
+                RemoveAgentConnectionFromCache(agentConnection);
+
+                //var chatbot = _nlpChatbotFunction.GetChatbot(agentConnection.ChatbotId);
+                var chatroomStatus = await GetChatroomStatus(agentConnection.ChatbotId.Value, agentConnection.ClientId.Value);
+                SendChatroomStatusToAgents(agentConnection.AgentTenantId, chatroomStatus);
+
+                return;
+            }
+        }
+
+        public async Task<ChatroomWorkflowInfo> SetChatbotWorkflowState(SetChatroomWorkflow workflow)
+        {
+            var chatroomStatus = await GetChatroomStatus(workflow.ChatbotId, workflow.ClientId);
+            if (chatroomStatus == null)
+                return null;
+
+            if (workflow.WorkflowName.IsNullOrEmpty() || workflow.WorkflowName.IsNullOrWhiteSpace() || workflow.WorkflowStateName.IsNullOrEmpty() || workflow.WorkflowStateName.IsNullOrWhiteSpace())
+                chatroomStatus.WfState = Guid.Empty;
+            else
+            {
+                Guid wfpStatus = await _nlpWorkflowStateRepository.GetAll()
+                     .Include(e => e.NlpWorkflowFk)
+                     .Where(e => e.StateName == workflow.WorkflowStateName && e.NlpWorkflowFk.Name == workflow.WorkflowName && e.NlpWorkflowFk.NlpChatbotId == workflow.ChatbotId).Select(e => e.Id).FirstOrDefaultAsync();
+
+                if (chatroomStatus.WfState != wfpStatus)
+                {
+                    chatroomStatus.WfState = wfpStatus;
+                    chatroomStatus.IncorrectAnswerCount = 0;
+                }
+            }
+
+            UpdateChatroomStatusCache(workflow.ChatbotId, workflow.ClientId, chatroomStatus);
+            return await GetChatbotWorkflowState(new NlpChatroom(workflow.ChatbotId, workflow.ClientId));
+        }
+
+        public async Task<ChatroomWorkflowInfo> GetChatbotWorkflowState(NlpChatroom chatroomId)
+        {
+            var chatroomStatus = await GetChatroomStatus(chatroomId.ChatbotId, chatroomId.ClientId);
+            if (chatroomStatus == null)
+                return null;
+
+            //var WfsStatus = chatroomStatus.WfState;
+            var workflowStatus = await GetNlpWorkflowStateInfo(chatroomStatus.WfState);
+
+            chatroomStatus.WfState = workflowStatus?.Id ?? Guid.Empty;
+
+            var data = new ChatroomWorkflowInfo()
+            {
+                ChatbotId = chatroomStatus.ChatbotId,
+                ClientId = chatroomStatus.ClientId,
+                WorkflowId = workflowStatus?.NlpWorkflowId ?? null,
+                WorkflowName = workflowStatus?.NlpWorkflowName ?? null,
+                WorkflowStateId = workflowStatus?.Id ?? null,
+                WorkflowStateName = workflowStatus?.StateName ?? null,
+            };
+
+            if (data.WorkflowName.IsNullOrEmpty() || data.WorkflowName.IsNullOrWhiteSpace())
+                data.WorkflowName = null;
+
+            if (data.WorkflowStateName.IsNullOrEmpty() || data.WorkflowStateName.IsNullOrWhiteSpace())
+                data.WorkflowStateName = null;
+
+            return data;
+        }
+
+
+        [DisableAuditing]
+        public bool IsValidChatroom(Guid chatbotId)
+        {
+            var chatbot = _nlpChatbotFunction.GetChatbotDto(chatbotId);
+            if (chatbot == null)
+                return false;
+            return true;
+        }
+
+        private async Task RemoveClientConnectionFromCache(NlpClientConnection nlpClientConnection)
+        {
+            if (nlpClientConnection != null)
+            {
+                _cacheManager.Remove_NlpClientConnection_By_ChatbotId_ClientId(nlpClientConnection.ChatbotId, nlpClientConnection.ClientId);
+
+                _cacheManager.Remove_NlpClientConnection_By_ConnectionId(nlpClientConnection.ConnectionId);
+
+                var chatroomStatus = await GetChatroomStatus(nlpClientConnection.ChatbotId, nlpClientConnection.ClientId);
+
+                if (chatroomStatus != null && chatroomStatus.ClientConnected != false)
+                {
+                    chatroomStatus.ClientConnected = false;
+                    UpdateChatroomStatusCache(nlpClientConnection.ChatbotId, nlpClientConnection.ClientId, chatroomStatus);
+                }
+            }
+        }
+
+        private void RemoveAgentConnectionFromCache(NlpAgentConnection nlpAgentConnection)
+        {
+            if (nlpAgentConnection != null)
+            {
+                _cacheManager.Remove_NlpAgentConnection_By_ChatbotId_ClientId_UserId(nlpAgentConnection.ChatbotId.Value, nlpAgentConnection.ClientId.Value, nlpAgentConnection.AgentId);
+
+                _cacheManager.Remove_NlpAgentConnection_By_ConnectionId(nlpAgentConnection.ConnectionId);
+            }
+        }
+
+        private async Task AddNlpClientConnectionCache(NlpClientConnection client)
+        {
+            _cacheManager.Set_NlpClientConnection_By_ChatbotId_ClientId(client.ChatbotId, client.ClientId, client);
+            _cacheManager.Set_NlpClientConnection_By_ConnectionId(client.ConnectionId, client);
+
+            var chatroomStatus = await GetChatroomStatus(client.ChatbotId, client.ClientId);
+            if (chatroomStatus != null)
+            {
+                if (chatroomStatus.ClientConnected != true || chatroomStatus.ClientChannel != client.ClientChannel || chatroomStatus.ClientIP != client.ClientIP)
+                {
+                    chatroomStatus.ClientConnected = true;
+                    chatroomStatus.ClientChannel = client.ClientChannel;
+                    chatroomStatus.ClientIP = client.ClientIP;
+                    UpdateChatroomStatusCache(client.ChatbotId, client.ClientId, chatroomStatus);
+                }
+            }
+        }
+
+        private void AddNlpAgentConnectionCache(NlpAgentConnection agent)
+        {
+            _cacheManager.Set_NlpAgentConnection_By_ChatbotId_ClientId_UserId(agent.ChatbotId.Value, agent.ClientId.Value, agent.AgentId, agent);
+            _cacheManager.Set_NlpAgentConnection_By_ConnectionId(agent.ConnectionId, agent);
+        }
+
+        private async Task<NlpChatroomAgent> GetAgentNamePicture(long userId)
+        {
+            if (__userLoginInfoDtoCache == null || __userLoginInfoDtoCache.Id != userId)
+                __userLoginInfoDtoCache = (UserLoginInfoDto)_cacheManager.Get_UserLoginInfoDto(userId);
+
+            if (AbpSession.UserId.HasValue && __userLoginInfoDtoCache == null)
+            {
+                var info = await _sessionAppService.GetCurrentLoginInformations();
+                __userLoginInfoDtoCache = info.User;
+            }
+
+            if (__userLoginInfoDtoCache != null)
+            {
+                Guid? profilePictureId = null;
+                try
+                {
+                    profilePictureId = Guid.Parse(__userLoginInfoDtoCache.ProfilePictureId);
+                }
+                catch (Exception)
+                {
+                }
+
+                return new NlpChatroomAgent()
+                {
+                    AgentId = userId,
+                    AgentName = __userLoginInfoDtoCache.Name,
+                    AgentPictureId = profilePictureId
+                };
+            }
+            else
+            {
+                return new NlpChatroomAgent()
+                {
+                    AgentId = userId,
+                    AgentName = "",
+                    AgentPictureId = null
+                };
+            }
+        }
+
+
+        private async Task<NlpWorkflowStateInfo> GetNlpWorkflowStateInfo(Guid workflowStateId)
+        {
+            if (workflowStateId == Guid.Empty)
+                return null;
+
+            if (__nlpWorkflowStateInfoCache == null || __nlpWorkflowStateInfoCache.Id != workflowStateId)
+                __nlpWorkflowStateInfoCache = (NlpWorkflowStateInfo)_cacheManager.Get_NlpWorkflowStates(workflowStateId);
+
+            if (__nlpWorkflowStateInfoCache == null)
+            {
+                var nlpWorkflowStateInfo = await (from o in _nlpWorkflowStateRepository.GetAll().Include(e => e.NlpWorkflowFk).Where(e => e.Id == workflowStateId)
+                                                  select new NlpWorkflowStateInfo()
+                                                  {
+                                                      Id = o.Id,
+                                                      ResponseNonWorkflowAnswer = o.ResponseNonWorkflowAnswer,
+                                                      DontResponseNonWorkflowErrorAnswer = o.DontResponseNonWorkflowErrorAnswer,
+                                                      NlpWorkflowId = o.NlpWorkflowId,
+                                                      Outgoing3FalseOp = o.Outgoing3FalseOp,
+                                                      OutgoingFalseOp = o.OutgoingFalseOp,
+                                                      StateInstruction = o.StateInstruction,
+                                                      StateName = o.StateName,
+                                                      NlpWorkflowName = o.NlpWorkflowFk.Name
+                                                  }).FirstOrDefaultAsync();
+
+                __nlpWorkflowStateInfoCache = (NlpWorkflowStateInfo)_cacheManager.Set_NlpWorkflowStates(workflowStateId, nlpWorkflowStateInfo);
+            }
+
+            return __nlpWorkflowStateInfoCache;
+        }
+
+        public async Task<NlpCbGetChatbotPredictResult> ChatbotPredict(Guid chatbotId, string question, Guid? workflowState)
+        {
+            NlpCbGetChatbotPredictResult result = await _lpCbWebApiClient.ChatbotPredict(chatbotId, question, workflowState);
+
+            return result;
+        }
+
+
+
+        public async Task<NlpCbGetChatbotPredictResult> ChatbotPredictBySimilarity(Guid chatbotId, string question, Guid? workflowState)
+        {
+            NlpCbGetChatbotPredictResult result = await _lpCbWebApiClient.ChatbotPredict(chatbotId, question, workflowState);
+
+            if (result.errorCode != "success")
+                return result;
+
+            var predictQuestions = new List<IList<string>>();
+            foreach (var resultItem in result.result)
+            {
+                var nlpQADto = await GetNlpQADtofromNNID(chatbotId, resultItem.nnid);
+
+                var state1 = workflowState;
+                var state2 = Guid.Empty;
+
+                if (nlpQADto != null && nlpQADto.CurrentWfState != null)
+                    state2 = nlpQADto.CurrentWfState.Value;
+
+                if (nlpQADto == null || state1 != state2)
+                {
+                    predictQuestions.Add(null);
+                    continue;
+                }
+                else
+                {
+                    IList<string> questions = null;
+                    try
+                    {
+                        questions = JsonConvert.DeserializeObject<IList<string>>(nlpQADto.Question);
+                    }
+                    catch (Exception)
+                    {
+                    }
+
+                    predictQuestions.Add(questions);
+                }
+            }
+
+            var similarities = await _lpCbWebApiClient.GetSentencesSimilarityAsync(question, predictQuestions);
+            var similarities2 = similarities.similarities.ToArray();
+
+            int i = 0;
+            foreach (var resultItem in result.result)
+            {
+                resultItem.probability = similarities2[i];
+                i++;
+            }
+
+            result.result = result.result.OrderByDescending(e => e.probability).ToArray();
+
+            return result;
+        }
+
+        public async Task<NlpWfsFalsePredictionOpDto> GetNlpWfsFalsePredictionOpDto(Guid chatbotId, Guid clientId, string json)
+        {
+            try
+            {
+                var value = JsonConvert.DeserializeObject<NlpWfsFalsePredictionOpDto>(json);
+
+                if (value.NextStatus == NlpWorkflowStateConsts.WfsKeepCurrent)
+                {
+                    var chatroomInfo = await GetChatroomStatus(chatbotId, clientId);
+                    value.NextStatus = chatroomInfo.WfState;
+                }
+
+                return value;
+
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+
+        public async Task<string> ReplaceCustomStringAsync(string text, Guid chatbotId)
+        {
+            string result = text;
+
+            if (text.Contains("${") == true && text.Contains("}") == true)
+            {
+
+                if (text.Contains("${Chatbot.Name}", StringComparison.OrdinalIgnoreCase))
+                {
+                    var nlpChatbotName = _nlpChatbotFunction.GetChatbotName(chatbotId);
+                    text = text.Replace("${Chatbot.Name}", nlpChatbotName);
+                }
+
+                var list = NlpDataParserHelper.ParserJson(text);
+                StringBuilder sb = new StringBuilder();
+
+                foreach (var item in list)
+                {
+                    if (item.name == "text")
+                        sb.Append(await _externalCustomData.GetCustomDataAsync2(text));
+                    else if (item.name == "json")
+                        sb.Append(await _externalCustomData.GetCustomDataAsync((string)item.value));
+                }
+
+                result= sb.ToString();
+            }
+
+            //result = await _openAIClient.Chat(chatbotId, result);
+
+            return result;
+        }
+
+        private async Task<IList<string>> ReplaceCustomStringAsync(IList<string> texts, Guid chatbotId)
+        {
+            var newList = new List<string>();
+
+            foreach (var text in texts)
+                newList.Add(
+                    //await ChatGPT(chatbotId
+                    await ReplaceCustomStringAsync(text, chatbotId));
+
+            return newList;
+        }
+
+        private string StripHTML(string input)
+        {
+            if (input.IsNullOrEmpty())
+                return input;
+
+            input = input.Replace("<br>", "\n").Replace("<BR>", "\n");
+            return Regex.Replace(input, "<.*?>", String.Empty);
+        }
+
+        private static void InferenctSlime(SemaphoreSlim slim, int Count = 1)
+        {
+            if (slim == null)
+                return;
+
+            _ = Task.Run(async () =>
+            {
+                for (int n = 0; n < Count; n++)
+                {
+                    try
+                    {
+                        await slim.WaitAsync(_SemaphoreSlimWaitTimeOut);
+                        await Task.Delay(1000);
+                    }
+                    finally
+                    {
+                        slim.Release();
+                    }
+                }
+            });
+        }
+
+        //json to Answer
+        private IList<string> JsonToAnswer(string json)
+        {
+            if (json == null || json.IsNullOrEmpty())
+            {
+                return null;
+            }
+
+            try
+            {
+                var obj = JsonConvert.DeserializeObject<CbAnswerSet[]>(json);
+
+                var stringList = new List<string>();
+
+                foreach (var item in obj)
+                {
+                    if (item.GPT == true)
+                    {
+                        stringList.Add("[GPT]" + item.Answer);
+                    }
+                    else
+                    {
+                        stringList.Add(item.Answer);
+                    }
+                }
+
+                return stringList;
+            }
+            catch (Exception)
+            {
+            }
+
+            try
+            {
+                return JsonConvert.DeserializeObject<IList<string>>(json);
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+
+        }
+    }
+}

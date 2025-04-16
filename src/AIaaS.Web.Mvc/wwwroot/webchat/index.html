@@ -1,42 +1,37 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <title>ChatPal.Ai - Web Chat</title>
+    <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta content="ChatPal.Ai Web Chat" name="description" />
-    <meta content="ChatPal.Ai" name="author" />
+    <meta name="description" content="ChatPal.Ai Web Chat" />
+    <meta name="author" content="ChatPal.Ai" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.9.0/css/all.min.css" />
+    <link rel="stylesheet" type="text/css" href="webchat.min.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/3.1.7/signalr.min.js"></script>
-
-    <link rel="stylesheet" type="text/css" href="webchat.min.css" />
-    <script type="text/javascript" src="chatbot-signalr.min.js"></script>
-    <script type="text/javascript" src="webchat.min.js"></script>
-
+    <script src="chatbot-signalr.min.js"></script>
+    <script src="webchat.min.js"></script>
 </head>
 <body class="overflow-hidden">
     <div class="container-fluid h-100 d-none" id="webchat-container">
         <div class="row justify-content-center h-100">
             <div class="col-md-8 col-xl-6 px-0 chat">
                 <div class="card" id="webchat-body">
-                    <div class="card-header msg_head">
-                        <div class="d-flex bd-highlight">
-                            <div class="img_cont">
-                            </div>
-                            <div class="user_info">
-                            </div>
+                    <div class="card-header msg_head d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <div class="img_cont"></div>
+                            <div class="user_info"></div>
                         </div>
-                        <span id="webchat_close_btn"><i class="far fa-window-close"></i></span>
+                        <span id="webchat_close_btn" title="Close"><i class="far fa-window-close"></i></span>
                     </div>
-                    <div class="card-body msg_card_body">
-
-                    </div>
+                    <div class="card-body msg_card_body"></div>
                     <div class="card-footer">
                         <div class="input-group">
-                            <textarea id="chatbot_msg_text" class="form-control type_msg ps-3" placeholder="Type your message..."></textarea>
+                            <textarea id="chatbot_msg_text" class="form-control type_msg ps-3" placeholder="Type your message..." rows="1"></textarea>
                             <div class="input-group-append">
-                                <span class="input-group-text send_btn"><i class="fas fa-location-arrow"></i></span>
+                                <span class="input-group-text send_btn" title="Send"><i class="fas fa-location-arrow"></i></span>
                             </div>
                         </div>
                     </div>

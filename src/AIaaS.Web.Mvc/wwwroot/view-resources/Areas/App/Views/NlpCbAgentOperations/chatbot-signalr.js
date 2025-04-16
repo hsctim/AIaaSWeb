@@ -1,134 +1,187 @@
-﻿var app = app || {};
+﻿/**
+ * Chatbot SignalR Module
+ * Handles SignalR connections and interactions for chatbot operations.
+ */
+var app = app || {};
 app.chatbot = app.chatbot || {};
 
-//if (!app.chatbot.event)
-//    app.chatbot.event = $('#webchat-container');
-
 (function () {
-    //debugger;
-
-    //Check if SignalR is defined
+    // Ensure SignalR is available before proceeding
     if (!signalR) {
+        console.error("SignalR is not defined. Exiting chatbot initialization.");
         return;
     }
 
-    //Create namespaces
+    // Initialize namespaces
     app.signalr = app.signalr || {};
     app.signalr.hubs = app.signalr.hubs || {};
 
-    var chatbotHub = null;
+    let chatbotHub = null;
 
-    // Configure the connection
+    /**
+     * Configures the SignalR connection, including reconnection logic and event registration.
+     * @param {HubConnection} connection - The SignalR connection instance.
+     */
     function configureConnection(connection) {
-        // Set the common hub
         app.signalr.hubs.chatbot = connection;
         chatbotHub = connection;
 
         let reconnectTime = 5000;
         let tries = 1;
-        let maxTries = 8;
+        const maxTries = 8;
 
+        /**
+         * Attempts to reconnect to the SignalR server with exponential backoff.
+         */
         function tryReconnect() {
             if (tries > maxTries) {
+                console.warn("Max reconnection attempts reached. Stopping reconnection.");
                 return;
-            } else {
-                connection.start()
-                    .then(function () {
-                        reconnectTime = 5000;
-                        tries = 1;
-                        console.log('Reconnected to SignalR chatbot server!');
-
-                        $('div[name="NlpCbAgentOperationsPage"]').find('#nlp_agent_chatroom').trigger('chatroom.reconnect');
-
-                    }).catch(function () {
-                        tries += 1;
-                        reconnectTime *= 2;
-                        setTimeout(function () {
-                            tryReconnect();
-                        }, reconnectTime);
-                    });
             }
+
+            connection.start()
+                .then(() => {
+                    reconnectTime = 5000;
+                    tries = 1;
+                    console.log("Reconnected to SignalR chatbot server!");
+                    $('div[name="NlpCbAgentOperationsPage"]').find('#nlp_agent_chatroom').trigger('chatroom.reconnect');
+                })
+                .catch(() => {
+                    tries++;
+                    reconnectTime *= 2;
+                    setTimeout(tryReconnect, reconnectTime);
+                });
         }
 
-        // Reconnect if hub disconnects
-        connection.onclose(function (e) {
-            if (e) {
-                console.log('chatbot connection closed with error: ' + e);
+        // Handle disconnection and attempt reconnection if autoConnect is enabled
+        connection.onclose((e) => {
+            console[e ? "error" : "log"](`Chatbot connection closed: ${e || "No error"}`);
+            if (app.signalr.autoConnect) {
+                tryReconnect();
             }
-            else {
-                console.log('chatbot disconnected');
-            }
-
-            if (!app.signalr.autoConnect) {
-                return;
-            }
-            tryReconnect();
         });
 
-        // Register to get notifications
+        // Register event handlers for chatbot notifications
         registerChatbotEvents(connection);
     }
 
-    // Connect to the server
-    app.signalr.connect = function () {
-        // Start the connection.
-        startConnection('/signalr-chatbot', configureConnection)
-            .then(function (connection) {
-                console.log('Connected to SignalR chatbot server!');
-                //$('#webchat-container').trigger('app.chat.connected');
-
-                // Call the Register method on the hub.
-                connection.invoke('register').then(function () {
-                    console.log('Registered to the SignalR chatbot server!');
-                });
-            })
-            .catch(function (error) {
-                console.log(error.message);
-            });
-    };
-
-    // Starts a connection with transport fallback - if the connection cannot be started using
-    // the webSockets transport the function will fallback to the serverSentEvents transport and
-    // if this does not work it will try longPolling. If the connection cannot be started using
-    // any of the available transports the function will return a rejected Promise.
+    /**
+     * Establishes a SignalR connection with transport fallback.
+     * @param {string} url - The SignalR hub URL.
+     * @param {Function} configureConnection - Callback to configure the connection.
+     * @returns {Promise<HubConnection>} - A promise resolving to the SignalR connection.
+     */
     function startConnection(url, configureConnection) {
         if (app.signalr.remoteServiceBaseUrl) {
             url = app.signalr.remoteServiceBaseUrl + url;
         }
 
-        // Add query string: https://github.com/aspnet/SignalR/issues/680
         if (app.signalr.qs) {
-            url += '?' + app.signalr.qs;
+            url += `?${app.signalr.qs}`;
         }
 
-        return function start(transport) {
-            console.log('Starting connection using ' + signalR.HttpTransportType[transport] + ' transport');
+        /**
+         * Attempts to start the connection using the specified transport.
+         * @param {number} transport - The SignalR transport type.
+         * @returns {Promise<HubConnection>} - A promise resolving to the SignalR connection.
+         */
+        function start(transport) {
+            console.log(`Starting connection using ${signalR.HttpTransportType[transport]} transport`);
 
-            var connection = new signalR.HubConnectionBuilder()
+            const connection = new signalR.HubConnectionBuilder()
                 .withUrl(url, transport)
                 .build();
 
-            if (configureConnection && typeof configureConnection === 'function') {
+            if (configureConnection) {
                 configureConnection(connection);
             }
 
             return connection.start()
-                .then(function () {
-                    return connection;
-                })
-                .catch(function (error) {
-                    console.log('Cannot start the connection using ' + signalR.HttpTransportType[transport] + ' transport. ' + error.message);
+                .then(() => connection)
+                .catch((error) => {
+                    console.error(`Failed to start connection with ${signalR.HttpTransportType[transport]} transport: ${error.message}`);
                     if (transport !== signalR.HttpTransportType.LongPolling) {
                         return start(transport + 1);
                     }
-
                     return Promise.reject(error);
                 });
-        }(signalR.HttpTransportType.WebSockets);
+        }
+
+        return start(signalR.HttpTransportType.WebSockets);
     }
+
+    /**
+     * Registers SignalR event handlers for chatbot-related events.
+     * @param {HubConnection} connection - The SignalR connection instance.
+     */
+    function registerChatbotEvents(connection) {
+        const pageSelector = 'div[name="NlpCbAgentOperationsPage"]';
+        const chatroomSelector = '#nlp_agent_chatroom';
+
+        connection.on('agentGetChatbotMessage', (message) => {
+            $(pageSelector).find(chatroomSelector).trigger('chatroom.agentMessageReceived', message);
+        });
+
+        connection.on('agentGetChatbotMessages', (messages) => {
+            $(pageSelector).find(chatroomSelector).trigger('chatroom.agentMessagesReceived', { messages });
+        });
+
+        connection.on('updateChatroomStatus', (status) => {
+            try {
+                $(pageSelector).find(chatroomSelector).trigger('chatroom.updateChatroomStatus', status);
+            } catch (e) {
+                console.error("Error handling updateChatroomStatus event:", e);
+            }
+        });
+
+        connection.on('suggestedAnswers', (status) => {
+            try {
+                $(pageSelector).find(chatroomSelector).trigger('chatroom.suggestedAnswers', status);
+            } catch (e) {
+                console.error("Error handling suggestedAnswers event:", e);
+            }
+        });
+    }
+
+    /**
+     * Sends a message from the agent to the chatbot.
+     * @param {Object} messageData - The message data to send.
+     * @param {Function} callback - Callback to execute after the operation.
+     */
+    app.chatbot.agentSendMessage = function (messageData, callback) {
+        if (!isConnected()) {
+            callback?.();
+            return;
+        }
+
+        chatbotHub.invoke('agentSendMessage', messageData).then(callback);
+    };
+
+    /**
+     * Checks if the SignalR connection is active.
+     * @returns {boolean} - True if connected, false otherwise.
+     */
+    function isConnected() {
+        return chatbotHub?.connection?.connectionState === signalR.HubConnectionState.Connected;
+    }
+
+    // Expose connection methods
+    app.signalr.connect = function () {
+        startConnection('/signalr-chatbot', configureConnection)
+            .then((connection) => {
+                console.log("Connected to SignalR chatbot server!");
+                connection.invoke('register').then(() => {
+                    console.log("Registered to the SignalR chatbot server!");
+                });
+            })
+            .catch((error) => {
+                console.error("Error connecting to SignalR chatbot server:", error.message);
+            });
+    };
 
     app.signalr.startConnection = startConnection;
 
+    // Auto-connect if enabled
     if (app.signalr.autoConnect === undefined) {
         app.signalr.autoConnect = true;
     }
@@ -136,206 +189,4 @@ app.chatbot = app.chatbot || {};
     if (app.signalr.autoConnect) {
         app.signalr.connect();
     }
-
-    function registerChatbotEvents(connection) {
-        connection.on('agentGetChatbotMessage', function (message) {
-            $('div[name="NlpCbAgentOperationsPage"]').find('#nlp_agent_chatroom').trigger('chatroom.agentMessageReceived', message);
-        });
-
-        connection.on('agentGetChatbotMessages', function (messages) {
-            $('div[name="NlpCbAgentOperationsPage"]').find('#nlp_agent_chatroom').trigger('chatroom.agentMessagesReceived', { "messages": messages });
-        });
-
-        connection.on('updateChatroomStatus', function (status) {
-            try {
-                $('div[name="NlpCbAgentOperationsPage"]').find('#nlp_agent_chatroom').trigger('chatroom.updateChatroomStatus', status);
-            } catch (e) {
-                console.error(e, e.stack);
-            }
-        });
-
-        connection.on('suggestedAnswers', function (status) {
-            try {
-                $('div[name="NlpCbAgentOperationsPage"]').find('#nlp_agent_chatroom').trigger('chatroom.suggestedAnswers', status);
-            } catch (e) {
-                console.error(e, e.stack);
-            }
-        });
-    }
-
-    app.chatbot.agentSendMessage = function (messageData, callback) {
-
-        if (chatbotHub.connection.connectionState !== signalR.HubConnectionState.Connected) {
-            callback && callback();
-            //app.notify.warn(app.localize('chatbotIsNotConnectedWarning'));
-            return;
-        }
-
-        chatbotHub.invoke('agentSendMessage', messageData).then(function (result) {
-            if (result) {
-                //app.notify.warn(result);
-            }
-
-            callback && callback();
-        });
-    };
-
-    app.chatbot.agentSendMessageToChatbot = function (messageData, callback) {
-
-        if (chatbotHub.connection.connectionState !== signalR.HubConnectionState.Connected) {
-            callback && callback();
-            //app.notify.warn(app.localize('chatbotIsNotConnectedWarning'));
-            return;
-        }
-
-        chatbotHub.invoke('agentSendMessageToChatbot', messageData).then(function (result) {
-            if (result) {
-                //app.notify.warn(result);
-            }
-
-            callback && callback();
-        });
-    };
-
-
-    app.chatbot.requestHistoryMessages = function (messageData, callback) {
-        if (chatbotHub.connection.connectionState !== signalR.HubConnectionState.Connected) {
-            callback && callback();
-            //app.notify.warn(app.localize('chatbotIsNotConnectedWarning'));
-            return;
-        }
-
-        chatbotHub.invoke('requestHistoryMessages', messageData).then(function (result) {
-            if (result) {
-                //app.notify.warn(result);
-            }
-
-            callback && callback();
-        });
-    };
-
-    app.chatbot.enableResponseConfirm = function (messageData, callback) {
-        if (chatbotHub.connection.connectionState !== signalR.HubConnectionState.Connected) {
-            callback && callback();
-            //app.notify.warn(app.localize('chatbotIsNotConnectedWarning'));
-            return;
-        }
-
-        chatbotHub.invoke('enableResponseConfirm', messageData).then(function (result) {
-            if (result) {
-                //app.notify.warn(result);
-            }
-
-            callback && callback();
-        });
-    };
-
-    app.chatbot.isConnected = function () {
-        if (chatbotHub.connection.connectionState !== signalR.HubConnectionState.Connected)
-            return false;
-        return true;
-    }
-
-
-    app.chatbot.requestGreetingMessage = function (messageData, callback) {
-        if (chatbotHub.connection.connectionState !== signalR.HubConnectionState.Connected) {
-            callback && callback();
-            //app.notify.warn(app.localize('chatbotIsNotConnectedWarning'));
-            return;
-        }
-
-        chatbotHub.invoke('requestGreetingMessage', messageData).then(function (result) {
-            if (result) {
-                //app.notify.warn(result);
-            }
-
-            callback && callback();
-        });
-    };
-
-    app.chatbot.sendReceipt = function (messageData, callback) {
-        if (chatbotHub.connection.connectionState !== signalR.HubConnectionState.Connected) {
-            callback && callback();
-            //app.notify.warn(app.localize('chatbotIsNotConnectedWarning'));
-            return;
-        }
-
-        chatbotHub.invoke('sendReceipt', messageData).then(function (result) {
-            if (result) {
-                //app.notify.warn(result);
-            }
-            callback && callback();
-        });
-    };
-
-    app.chatbot.agentRequestHistoryMessages = function (messageData, callback) {
-        if (chatbotHub.connection.connectionState !== signalR.HubConnectionState.Connected) {
-            callback && callback();
-            //app.notify.warn(app.localize('chatbotIsNotConnectedWarning'));
-            return;
-        }
-
-        chatbotHub.invoke('agentRequestHistoryMessages', messageData).then(function (result) {
-            if (result && result != "" && result != "OK")
-                abp.message.warn(app.localize(result));
-
-            callback && callback();
-        });
-    };
-
-
-
-    app.chatbot.agentSendReceipt = function (messageData, callback) {
-        if (chatbotHub.connection.connectionState !== signalR.HubConnectionState.Connected) {
-            callback && callback();
-            //app.notify.warn(app.localize('chatbotIsNotConnectedWarning'));
-            return;
-        }
-
-        chatbotHub.invoke('agentSendReceipt', messageData).then(function (result) {
-            if (result) {
-                //app.notify.warn(result);
-            }
-            callback && callback();
-        });
-    };
-
-    app.chatbot.agentReconnect = function (messageData, callback) {
-        if (chatbotHub.connection.connectionState !== signalR.HubConnectionState.Connected) {
-            callback && callback();
-            //app.notify.warn(app.localize('chatbotIsNotConnectedWarning'));
-            return;
-        }
-
-        chatbotHub.invoke('agentReconnect', messageData).then(function (result) {
-            if (result) {
-                //app.notify.warn(result);
-            }
-            callback && callback();
-        });
-    };
-
-    app.chatbot.closeConnection = function (callback) {
-        app.signalr.autoConnect = false;
-
-        if (chatbotHub.connection.connectionState == signalR.HubConnectionState.Disconnected) {
-            callback && callback();
-            //app.notify.warn(app.localize('chatbotIsNotConnectedWarning'));
-            console.log('Disconnect from the SignalR chatbot server!');
-            return;
-        }
-
-        chatbotHub.stop().then(function (result) {
-            if (result) {
-                //app.notify.warn(result);
-                console.log('Disconnect from the SignalR chatbot server!');
-            }
-            callback && callback();
-        });
-    };
-
-    //app.event.trigger = function (event, message) {
-    //    webchatcontainer.trigger(event, message);
-    //}
-    //app.event.trigger('app.chatbot.messageReceived', message);
 })();

@@ -1,79 +1,91 @@
-﻿(function ($) {
+﻿/**
+ * ImportNlpQAModal
+ * Handles the import functionality for NLP QA (Question-Answer) pairs within a modal interface.
+ */
+(function ($) {
     app.modals.ImportNlpQAModal = function () {
-        var _nlpQAsService = abp.services.app.nlpQAs;
+        const _nlpQAsService = abp.services.app.nlpQAs;
 
-        var _modalManager;
-        var _$nlpQAInformationForm = null;
+        let _modalManager;
+        let _$nlpQAInformationForm = null;
 
+        /**
+         * Initializes the modal and sets up form validation.
+         * @param {Object} modalManager - The modal manager instance.
+         */
         this.init = function (modalManager) {
             _modalManager = modalManager;
+            const $modal = _modalManager.getModal();
 
-            var modal = _modalManager.getModal();
-            modal.find('div.modal-lg').removeClass('modal-lg');
-            modal.find('.date-picker').datetimepicker({
+            // Adjust modal size
+            $modal.find('div.modal-lg').removeClass('modal-lg');
+
+            // Initialize date picker
+            $modal.find('.date-picker').datetimepicker({
                 locale: abp.localization.currentLanguage.name,
                 format: 'L'
             });
 
-            _$nlpQAInformationForm = _modalManager.getModal().find('form[name=NlpQAInformationsForm]');
+            // Initialize the form and enable validation
+            _$nlpQAInformationForm = $modal.find('form[name=NlpQAInformationsForm]');
             _$nlpQAInformationForm.validate();
-
         };
 
-        $('#ImportQAsFromExcelFile').change(function (e) {
-            uploadSubmit();
+        /**
+         * Handles the file input change event to trigger the import process.
+         */
+        $('#ImportQAsFromExcelFile').change(function () {
+            handleFileUpload();
         });
 
-        function uploadSubmit() {
-            debugger;
+        /**
+         * Handles the file upload and submission process.
+         */
+        function handleFileUpload() {
+            const file = $('#ImportQAsFromExcelFile')[0].files[0];
 
-            var file = $('#ImportQAsFromExcelFile')[0].files[0];
+            // Validate file size (limit: 100MB)
+            if (file && file.size > 104857600) {
+                abp.message.warn(app.localize('ExcelFile_Warn_SizeLimit', 100));
+                $('#ImportQAsFromExcelFile').val(""); // Reset the file input
+                return;
+            }
 
+            // Serialize form data
+            const dto = _$nlpQAInformationForm.serializeFormToObject();
+            const formData = new FormData();
+
+            // Append form data and file to FormData
+            Object.keys(dto).forEach((key) => formData.append(key, dto[key]));
             if (file) {
-                if (file.size > 104857600) //100MB
-                {
-                    abp.message.warn(app.localize('ExcelFile_Warn_SizeLimit', 100));
-                    $('#ImportQAsFromExcelFile').val("");
-                    return false;
-                }
-            }
-
-            var dto = _$nlpQAInformationForm.serializeFormToObject();
-            //dto["IgnoreDuplication"] = $('#IgnoreDuplication').prop("checked")
-
-            var formData = new FormData();
-            for (var k in dto) {
-                formData.append(k, dto[k]);
-            }
-
-            if (file)
                 formData.append("file", file);
+            }
 
-            //$('#ImportQAsFromExcelButton').removeAttr('for').empty()
-            //    .attr('aria-disabled', "true")
-            //    .addClass("disabled")
-            //    .append($("<i/>").addClass("spinner-border spinner-border-sm mr-5"))
-            //    .append(app.localize("ImportingFromExcel"));
-
+            // Set the modal to busy state
             _modalManager.setBusy(true);
 
-            return abp.ajax({
+            // Submit the form data via AJAX
+            abp.ajax({
                 url: abp.appPath + 'App/NlpQAs/ImportExcelFile',
                 type: 'POST',
                 data: formData,
-                //async: false,
-                //cache: false,
                 contentType: false,
-                processData: false,
+                processData: false
             }).done(function () {
                 abp.notify.info(app.localize('ImportSuccessfully'));
                 _modalManager.close();
                 abp.event.trigger('app.createOrEditNlpQAModalSaved');
             }).fail(function () {
+                abp.message.error(app.localize('ImportFailed'));
                 _modalManager.close();
             }).always(function () {
+                // Reset the modal busy state
                 _modalManager.setBusy(false);
             });
         }
     };
 })(jQuery);
+
+
+
+

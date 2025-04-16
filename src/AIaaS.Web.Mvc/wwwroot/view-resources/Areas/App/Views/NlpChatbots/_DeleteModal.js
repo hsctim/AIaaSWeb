@@ -1,96 +1,80 @@
-﻿(function ($) {
-
+﻿/**
+ * DeleteNlpChatbotModal
+ * Handles the deletion of NLP chatbots within a modal interface.
+ */
+(function ($) {
     app.modals.DeleteNlpChatbotModal = function () {
-        var _nlpChatbotsService = abp.services.app.nlpChatbots;
+        const _nlpChatbotsService = abp.services.app.nlpChatbots;
 
-        var _modalManager;
-        var _$nlpChatbotForm = null;
+        let _modalManager;
+        let _$nlpChatbotForm = null;
 
+        /**
+         * Initializes the modal and sets up the confirmation message.
+         * @param {Object} modalManager - The modal manager instance.
+         */
         this.init = function (modalManager) {
             _modalManager = modalManager;
-            var $modal = _modalManager.getModal();
+            const $modal = _modalManager.getModal();
 
-            _$nlpChatbotForm = _modalManager.getModal().find('form[name=NlpChatbotInformationsForm]');
+            _$nlpChatbotForm = $modal.find('form[name=NlpChatbotInformationsForm]');
 
+            // Adjust modal size
             $modal.find('div.modal-lg').removeClass('modal-lg');
-            //$modal.find('.modal-title').addClass('text-danger');
 
-            if (typeof String.prototype.replaceAll == "undefined") {
+            // Add polyfill for String.prototype.replaceAll if not available
+            if (typeof String.prototype.replaceAll === "undefined") {
                 String.prototype.replaceAll = function (match, replace) {
                     return this.replace(new RegExp(match, 'g'), () => replace);
-                }
+                };
             }
 
-            var html = app.localize("DeleteNlpChatbotConfirmText");
-            html = html.replaceAll("[", "<b class='bg-light'>").replaceAll("]", "</b>")
-                .replaceAll("{0}", _$nlpChatbotForm.find('[name="chatbotName"]').val())
-                .replaceAll("{1}", _$nlpChatbotForm.find('#userEmailAddress').val());
+            // Generate and display the confirmation message
+            const chatbotName = _$nlpChatbotForm.find('[name="chatbotName"]').val();
+            const userEmail = _$nlpChatbotForm.find('#userEmailAddress').val();
+            const confirmationMessage = app.localize("DeleteNlpChatbotConfirmText")
+                .replaceAll("[", "<b class='bg-light'>")
+                .replaceAll("]", "</b>")
+                .replaceAll("{0}", chatbotName)
+                .replaceAll("{1}", userEmail);
 
-            $modal.find('#formWarningMessage').append(html);
+            $modal.find('#formWarningMessage').append(confirmationMessage);
 
-            $modal.find('.delete-button').click(function () {
-                deleteChatbot();
-            });
+            // Bind the delete button click event
+            $modal.find('.delete-button').click(deleteChatbot);
         };
 
-        deleteChatbot = function () {
-            debugger;
+        /**
+         * Deletes the chatbot after validating the form and email confirmation.
+         */
+        const deleteChatbot = function () {
+            // Validate the form
             if (!_$nlpChatbotForm.valid()) {
                 return;
             }
 
-            if (_$nlpChatbotForm.find("#DeleteChatbotModal_EMail").val().trim() != _$nlpChatbotForm.find("#userEmailAddress").val().trim()) {
+            // Validate the email confirmation
+            const enteredEmail = _$nlpChatbotForm.find("#DeleteChatbotModal_EMail").val().trim();
+            const expectedEmail = _$nlpChatbotForm.find("#userEmailAddress").val().trim();
 
-                var $html = $("<div>").addClass("invalid-feedback").append(app.localize("InvalidEmailAddress"));
-
-                var $email = _$nlpChatbotForm.find('#DeleteChatbotModal_EMail');
-                $email.addClass('is-invalid');
-                $email.after($html[0]);
+            if (enteredEmail !== expectedEmail) {
+                const $emailField = _$nlpChatbotForm.find('#DeleteChatbotModal_EMail');
+                $emailField.addClass('is-invalid');
+                $emailField.after($("<div>").addClass("invalid-feedback").text(app.localize("InvalidEmailAddress")));
                 return;
             }
 
+            // Set the modal to busy state and call the delete service
             _modalManager.setBusy(true);
             _nlpChatbotsService.delete({
                 id: _$nlpChatbotForm.find('[name="id"]').val()
-            }).done(function () {
+            }).done(() => {
                 abp.notify.info(app.localize('SuccessfullyDeleted'));
                 _modalManager.close();
                 abp.event.trigger('app.createOrEditNlpChatbotModalSaved');
-            }).always(function () {
+            }).always(() => {
                 _modalManager.setBusy(false);
             });
-
-            //function deleteNlpChatbot(nlpChatbotId, nlpChatbotName) {
-            //    abp.message.confirm(
-            //        app.localize('NlpChatbotDeleteWarningMessage', nlpChatbotName),
-            //        app.localize('AreYouSure'),
-            //        function (isConfirmed) {
-            //            if (isConfirmed) {
-            //                _nlpChatbotsService.delete({
-            //                    id: nlpChatbotId
-            //                }).done(function () {
-            //                    getNlpChatbots(true);
-            //                    abp.notify.success(app.localize('SuccessfullyDeleted'));
-            //                });
-            //            }
-            //        }
-            //    );
-            //}
-
         };
-
-        //var nlpToken = _$nlpTokenInformationForm.serializeFormToObject();
-
-        //_modalManager.setBusy(true);
-        //_nlpTokensService.createOrEdit(
-        //    nlpToken
-        //).done(function () {
-        //    abp.notify.info(app.localize('SavedSuccessfully'));
-        //    _modalManager.close();
-        //    abp.event.trigger('app.createOrEditNlpTokenModalSaved');
-        //}).always(function () {
-        //    _modalManager.setBusy(false);
-        //});
-
     };
 })(jQuery);

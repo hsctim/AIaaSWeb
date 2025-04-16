@@ -1,46 +1,44 @@
-﻿(function ($) {
+﻿/**
+ * CreateOrEditNlpChatbotModal
+ * Handles the creation and editing of NLP chatbots within a modal interface.
+ */
+(function ($) {
     app.modals.CreateOrEditNlpChatbotModal = function () {
-        var _nlpChatbotsService = abp.services.app.nlpChatbots;
+        const _nlpChatbotsService = abp.services.app.nlpChatbots;
 
-        var _modalManager;
-        var _$nlpChatbotInformationForm = null;
+        let _modalManager;
+        let _$nlpChatbotInformationForm = null;
 
+        /**
+         * Initializes the modal and sets up form validation.
+         * @param {Object} modalManager - The modal manager instance.
+         */
         this.init = function (modalManager) {
             _modalManager = modalManager;
-
-            var modal = _modalManager.getModal();
-            //modal.find('.date-picker').datetimepicker({
-            //    locale: abp.localization.currentLanguage.name,
-            //    format: 'L',
-            //});
-
             _$nlpChatbotInformationForm = _modalManager.getModal().find('form[name=NlpChatbotInformationsForm]');
             _$nlpChatbotInformationForm.validate();
 
-            if (_$nlpChatbotInformationForm.find('#IsViewMode').val() == "1") {
-                _$nlpChatbotInformationForm.find('input').attr('readonly', true).addClass('readonly');
-                _$nlpChatbotInformationForm.find('input:checkbox').attr('disabled', true).attr('readonly', true).addClass('readonly');
-                _$nlpChatbotInformationForm.find('select').attr('disabled', true).addClass('readonly');
-                _$nlpChatbotInformationForm.find('textarea').attr('readonly', true).addClass('readonly').addClass('bg-light');
+            // Set form fields to readonly if in view mode
+            if (_$nlpChatbotInformationForm.find('#IsViewMode').val() === "1") {
+                _$nlpChatbotInformationForm.find('input, select, textarea').attr('readonly', true).addClass('readonly');
+                _$nlpChatbotInformationForm.find('input:checkbox').attr('disabled', true);
+                _$nlpChatbotInformationForm.find('textarea').addClass('bg-light');
             }
         };
 
+        /**
+         * Saves the chatbot by validating the form and submitting the data.
+         */
         this.save = function () {
-
+            // Highlight the first invalid tab if validation fails
             _$nlpChatbotInformationForm.find('input:invalid').each(function () {
-                // Find the tab-pane that this element is inside, and get the id
-                var $closest = $(this).closest('.tab-pane');
-                var id = $closest.attr('id');
-                // Find the link that corresponds to the pane and have it show
+                const $closest = $(this).closest('.tab-pane');
+                const id = $closest.attr('id');
                 $('.nav a[href="#' + id + '"]').tab('show');
-                // Only want to do it once
-                return false;
+                return false; // Stop after the first invalid input
             });
 
-
-            $.validator.setDefaults({
-                ignore: [],
-            });
+            $.validator.setDefaults({ ignore: [] });
 
             if (!_$nlpChatbotInformationForm.valid()) {
                 return;
@@ -49,111 +47,95 @@
             createOrEdit();
         };
 
+        /**
+         * Handles chatbot image selection and preview.
+         */
         $('.nlpchatbotimg').click(function (event) {
-            //debugger
             $('#NlpChatbot_ImageFileObj').val("");
             $('#NlpChatbot_ImageFile').val($(event.target).data("filename"));
             $('#ChatbotImage').attr('src', event.target.src);
         });
 
+        /**
+         * Validates and previews the uploaded chatbot image.
+         */
         $('#NlpChatbot_ImageFileObj').change(function (input) {
-            var file = $('#NlpChatbot_ImageFileObj')[0].files[0];
-            var fileInput = $('#NlpChatbot_ImageFileObj');
+            const file = input.target.files[0];
+            const fileInput = $('#NlpChatbot_ImageFileObj');
 
             if (file) {
-                var type = '|' + file.type.slice(file.type.lastIndexOf('/') + 1) + '|';
-                if ('|jpg|jpeg|png|gif|'.indexOf(type) === -1) {
+                const type = '|' + file.type.slice(file.type.lastIndexOf('/') + 1) + '|';
+                if ('|jpg|jpeg|png|gif|'.indexOf(type) === -1 || file.size > 102400) { // 100KB limit
                     abp.message.warn(app.localize('BotPicture_Warn_SizeLimit'));
                     fileInput.val("");
                     return false;
                 }
 
-                //debugger
-                //File size check
-                if (file.size > 102400) //100KB
-                {
-                    abp.message.warn(app.localize('BotPicture_Warn_SizeLimit'));
-                    fileInput.val("");
-                    return false;
-                }
-
-                var reader = new FileReader();
-                reader.onload = function (e) {
-                    $('#ChatbotImage').attr('src', e.target.result);
-                }
-            };
-            reader.readAsDataURL(input.target.files[0]);
+                const reader = new FileReader();
+                reader.onload = (e) => $('#ChatbotImage').attr('src', e.target.result);
+                reader.readAsDataURL(file);
+            }
         });
 
+        /**
+         * Submits the form data to create or edit the chatbot.
+         */
         function createOrEdit() {
-            var file = $('#NlpChatbot_ImageFileObj')[0].files[0];
+            const file = $('#NlpChatbot_ImageFileObj')[0].files[0];
             if (file) {
-                //File type check
-                var type = '|' + file.type.slice(file.type.lastIndexOf('/') + 1) + '|';
-                if ('|jpg|jpeg|png|gif|'.indexOf(type) === -1) {
-                    abp.message.warn(app.localize('BotPicture_Warn_SizeLimit'));
-                    //inputImg.files = null;
-                    $('#NlpChatbot_ImageFileObj').val("");
-                    return false;
-                }
-
-                if (file.size > 102400) //100KB
-                {
+                const type = '|' + file.type.slice(file.type.lastIndexOf('/') + 1) + '|';
+                if ('|jpg|jpeg|png|gif|'.indexOf(type) === -1 || file.size > 102400) { // 100KB limit
                     abp.message.warn(app.localize('BotPicture_Warn_SizeLimit'));
                     $('#NlpChatbot_ImageFileObj').val("");
                     return false;
                 }
             }
 
-            //debugger;
+            const dto = _$nlpChatbotInformationForm.serializeFormToObject();
+            dto["disabled"] = $('#NlpChatbot_Disabled').prop("checked");
+            dto["enableFacebook"] = $('#NlpChatbot_EnableFacebook').prop("checked");
+            dto["enableWebAPI"] = $('#NlpChatbot_EnableWebAPI').prop("checked");
+            dto["enableLine"] = $('#NlpChatbot_EnableLine').prop("checked");
+            dto["enableWebChat"] = $('#NlpChatbot_EnableWebChat').prop("checked");
+            dto["enableWebHook"] = $('#ChatPal_EnableWebHook').prop("checked");
 
-            var dto = _$nlpChatbotInformationForm.serializeFormToObject();
-
-            dto["disabled"] = $('#NlpChatbot_Disabled').prop("checked")
-            dto["enableFacebook"] = $('#NlpChatbot_EnableFacebook').prop("checked")
-            dto["enableWebAPI"] = $('#NlpChatbot_EnableWebAPI').prop("checked")
-            dto["enableLine"] = $('#NlpChatbot_EnableLine').prop("checked")
-            dto["enableWebChat"] = $('#NlpChatbot_EnableWebChat').prop("checked")
-            dto["enableWebHook"] = $('#ChatPal_EnableWebHook').prop("checked")
-
-            var formData = new FormData();
-            for (var k in dto) {
-                formData.append(k, dto[k]);
-            }
-
-            if (file)
-                formData.append("file", file);
+            const formData = new FormData();
+            Object.keys(dto).forEach((key) => formData.append(key, dto[key]));
+            if (file) formData.append("file", file);
 
             _modalManager.setBusy(true);
 
-            return abp.ajax({
+            abp.ajax({
                 url: abp.appPath + 'App/NlpChatbots/CreateOrEdit',
                 type: 'POST',
                 data: formData,
                 async: false,
                 cache: false,
                 contentType: false,
-                processData: false,
-            }).done(function () {
+                processData: false
+            }).done(() => {
                 abp.notify.info(app.localize('SavedSuccessfully'));
                 _modalManager.close();
                 abp.event.trigger('app.createOrEditNlpChatbotModalSaved');
-            }).always(function () {
+            }).always(() => {
                 _modalManager.setBusy(false);
             });
         }
 
-
-        $('#ResetThreshold').click(function (event) {
+        /**
+         * Resets threshold values to their defaults.
+         */
+        $('#ResetThreshold').click(() => {
             $('#PredThreshold').val($('input#defaultPredThreshold').val());
             $('#WSPredThreshold').val($('input#defaultWSPredThreshold').val());
             $('#SuggestionThreshold').val($('input#defaultSuggestionThreshold').val());
         });
 
-
-
+        /**
+         * Updates GPT options visibility based on the selected value.
+         */
         function updateGPTOptions() {
-            if ($('#GPTOptionsList').val() == "2") {
+            if ($('#GPTOptionsList').val() === "2") {
                 $('#GPTOptionsArea').show();
                 $('#OPENAI_APIKEY').prop('required', true);
             } else {
@@ -162,27 +144,18 @@
             }
         }
 
-        $('#GPTOptionsList').change(function () {
-            updateGPTOptions();
-        });
-
+        $('#GPTOptionsList').change(updateGPTOptions);
         updateGPTOptions();
 
-
-
+        /**
+         * Updates WebAPI-related options based on the WebAPI checkbox state.
+         */
         function updateWebAPI() {
-            if ($('#NlpChatbot_EnableWebAPI').is(':checked')) {
-                $('#ChatPal_EnableWebHook').attr('disabled', false).attr('readonly', false);
-            } else {
-                $('#ChatPal_EnableWebHook').attr('disabled', true).attr('readonly', true).prop("checked", false);
-            }
+            const isEnabled = $('#NlpChatbot_EnableWebAPI').is(':checked');
+            $('#ChatPal_EnableWebHook').attr('disabled', !isEnabled).attr('readonly', !isEnabled).prop("checked", isEnabled);
         }
 
-        $("#NlpChatbot_EnableWebAPI").on("click", function () {
-            updateWebAPI();
-        });
-
+        $('#NlpChatbot_EnableWebAPI').click(updateWebAPI);
         updateWebAPI();
-
     };
 })(jQuery);

@@ -1,88 +1,79 @@
-﻿(function () {
+﻿/**
+ * NlpWorkflowStates Module
+ * Handles the management, filtering, and CRUD operations for NLP workflow states.
+ */
+(function () {
     $(function () {
+        const _$nlpWorkflowStatesTable = $('#NlpWorkflowStatesTable');
+        const _nlpWorkflowStatesService = abp.services.app.nlpWorkflowStates;
 
-        var _$nlpWorkflowStatesTable = $('#NlpWorkflowStatesTable');
-        var _nlpWorkflowStatesService = abp.services.app.nlpWorkflowStates;
-
-        var _permissions = {
+        // Permissions for CRUD operations
+        const _permissions = {
             create: abp.auth.hasPermission('Pages.Administration.NlpWorkflows.Create'),
             edit: abp.auth.hasPermission('Pages.Administration.NlpWorkflows.Edit'),
-            'delete': abp.auth.hasPermission('Pages.Administration.NlpWorkflows.Delete')
+            delete: abp.auth.hasPermission('Pages.Administration.NlpWorkflows.Delete')
         };
 
-        var _createOrEditModal = new app.ModalManager({
+        // Modal managers for creating, editing, and viewing workflow states
+        const _createOrEditModal = new app.ModalManager({
             viewUrl: abp.appPath + 'App/NlpWorkflowStates/CreateOrEditModal',
             scriptUrl: abp.appPath + 'view-resources/Areas/App/Views/NlpWorkflowStates/_CreateOrEditModal.js',
             modalClass: 'CreateOrEditNlpWorkflowStateModal'
         });
 
-
-        var _viewNlpWorkflowStateModal = new app.ModalManager({
+        const _viewNlpWorkflowStateModal = new app.ModalManager({
             viewUrl: abp.appPath + 'App/NlpWorkflowStates/ViewnlpWorkflowStateModal',
             scriptUrl: abp.appPath + 'view-resources/Areas/App/Views/NlpWorkflowStates/_CreateOrEditModal.js',
-            modalClass: 'CreateOrEditNlpWorkflowStateModal',
+            modalClass: 'CreateOrEditNlpWorkflowStateModal'
         });
 
-
-        var dataTable = _$nlpWorkflowStatesTable.DataTable({
+        /**
+         * Initializes the DataTable for displaying NLP workflow states.
+         */
+        const dataTable = _$nlpWorkflowStatesTable.DataTable({
             paging: true,
             serverSide: true,
             processing: true,
             listAction: {
                 ajaxFunction: _nlpWorkflowStatesService.getAll,
-                inputFilter: function () {
-                    return {
-                        nlpWorkflowId: $('#WorkflowId').val()
-                    };
-                }
+                inputFilter: () => ({
+                    nlpWorkflowId: $('#WorkflowId').val()
+                })
             },
             columnDefs: [
                 {
                     className: 'control responsive',
                     orderable: false,
-                    render: function () {
-                        return '';
-                    },
+                    render: () => '',
                     targets: 0
                 },
                 {
-                    //width: 120,
                     targets: 1,
                     data: null,
                     orderable: false,
-                    //autoWidth: false,
                     defaultContent: '',
                     rowAction: {
                         cssClass: 'btn btn-brand dropdown-toggle',
-                        text: '<i class="fa fa-cog"></i><span class="d-none d-lg-inline-block">' + app.localize('Actions') + '</span><span class="caret"></span>',
+                        text: `<i class="fa fa-cog"></i><span class="d-none d-lg-inline-block">${app.localize('Actions')}</span><span class="caret"></span>`,
                         items: [
                             {
                                 text: app.localize('View'),
                                 iconStyle: 'far fa-eye me-2',
-                                action: function (data) {
-                                    _viewNlpWorkflowStateModal.open({ id: data.record.nlpWorkflowState.id });
-                                }
+                                action: (data) => _viewNlpWorkflowStateModal.open({ id: data.record.nlpWorkflowState.id })
                             },
                             {
                                 text: app.localize('Edit'),
                                 iconStyle: 'far fa-edit me-2',
-                                visible: function () {
-                                    return _permissions.edit;
-                                },
-                                action: function (data) {
-                                    _createOrEditModal.open({ id: data.record.nlpWorkflowState.id });
-                                }
+                                visible: () => _permissions.edit,
+                                action: (data) => _createOrEditModal.open({ id: data.record.nlpWorkflowState.id })
                             },
                             {
                                 text: app.localize('Delete'),
                                 iconStyle: 'far fa-trash-alt me-2',
-                                visible: function () {
-                                    return _permissions.delete;
-                                },
-                                action: function (data) {
-                                    deleteNlpWorkflowState(data.record.nlpWorkflowState);
-                                }
-                            }]
+                                visible: () => _permissions.delete,
+                                action: (data) => deleteNlpWorkflowState(data.record.nlpWorkflowState)
+                            }
+                        ]
                     }
                 },
                 {
@@ -109,69 +100,66 @@
                     targets: 6,
                     data: "nlpWorkflowState.responseNonWorkflowAnswer",
                     name: "responseNonWorkflowAnswer",
-                    render: function (responseNonWorkflowAnswer) {
-                        if (responseNonWorkflowAnswer) {
-                            return '<div class="text-center"><i class="fa fa-check text-success" title=' + app.localize("True") + '></i></div>';
-                        }
-
-                        return "";
-                    }
+                    render: (responseNonWorkflowAnswer) => responseNonWorkflowAnswer
+                        ? '<div class="text-center"><i class="fa fa-check text-success" title=' + app.localize("True") + '></i></div>'
+                        : ""
                 },
                 {
                     targets: 7,
                     data: "nlpWorkflowState.dontResponseNonWorkflowErrorAnswer",
                     name: "dontResponseNonWorkflowErrorAnswer",
-                    render: function (dontResponseNonWorkflowErrorAnswer) {
-                        if (dontResponseNonWorkflowErrorAnswer) {
-                            return '<div class="text-center"><i class="fa fa-check text-success" title=' + app.localize("True") + '></i></div>';
-                        }
-
-                        return "";
-                    }
-                },
+                    render: (dontResponseNonWorkflowErrorAnswer) => dontResponseNonWorkflowErrorAnswer
+                        ? '<div class="text-center"><i class="fa fa-check text-success" title=' + app.localize("True") + '></i></div>'
+                        : ""
+                }
             ]
         });
 
-        function getNlpWorkflowStates() {
+        /**
+         * Reloads the DataTable with updated data.
+         */
+        const getNlpWorkflowStates = () => {
             dataTable.ajax.reload();
-        }
+        };
 
-        function deleteNlpWorkflowState(nlpWorkflowState) {
+        /**
+         * Deletes an NLP workflow state after confirmation.
+         * @param {Object} nlpWorkflowState - The workflow state to delete.
+         */
+        const deleteNlpWorkflowState = (nlpWorkflowState) => {
             abp.message.confirm(
                 app.localize('NlpWorkflowStateDeleteWarningMessage', nlpWorkflowState.stateName),
                 app.localize('AreYouSure'),
-                function (isConfirmed) {
+                (isConfirmed) => {
                     if (isConfirmed) {
-                        _nlpWorkflowStatesService.delete({
-                            id: nlpWorkflowState.id
-                        }).done(function () {
-                            getNlpWorkflowStates(true);
+                        _nlpWorkflowStatesService.delete({ id: nlpWorkflowState.id }).done(() => {
+                            getNlpWorkflowStates();
                             abp.notify.success(app.localize('SuccessfullyDeleted'));
                         });
                     }
                 }
             );
-        }
+        };
 
-
-        $('#CreateNewNlpWorkflowStateButton').click(function () {
+        // Event Handlers
+        $('#CreateNewNlpWorkflowStateButton').click(() => {
             _createOrEditModal.open({ workflowId: $('#WorkflowId').val() });
         });
 
-
-
-        abp.event.on('app.createOrEditNlpWorkflowStateModalSaved', function () {
+        abp.event.on('app.createOrEditNlpWorkflowStateModalSaved', () => {
             getNlpWorkflowStates();
         });
 
-
-        $(document).keypress(function (e) {
+        $(document).keypress((e) => {
             if (e.which === 13) {
                 getNlpWorkflowStates();
             }
         });
-
-
-
     });
 })();
+
+
+
+
+
+

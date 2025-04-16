@@ -1,25 +1,35 @@
-﻿.text-with-truncation {
-    display: -webkit-box;
-    max-width: 100%;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    word-wrap: break-word !important;
-    word-break: break-word !important;
+﻿/**
+ * NlpCbQAAccuracies LESS Stylesheet
+ * This file contains styles for truncating text, GPT-related elements, and chatbot icons.
+ */
+
+/* Text Truncation Style */
+.text-with-truncation {
+    display: -webkit-box; /* Enables multi-line truncation using -webkit-line-clamp */
+    max-width: 100%; /* Ensures the text does not exceed the container width */
+    -webkit-line-clamp: 3; /* Limits the text to 3 lines before truncating */
+    -webkit-box-orient: vertical; /* Sets the box orientation to vertical for line clamping */
+    overflow: hidden; /* Hides overflowing text */
+    word-wrap: break-word !important; /* Breaks long words to prevent overflow */
+    word-break: break-word !important; /* Ensures word breaking for long words */
 }
 
-.gpt-check, .gpt-check-input {
-    height: 2.25rem;
-    width: 2.25rem;
-    background-size: 100% 100% !important;
+/* GPT Checkbox and Input Styles */
+.gpt-check,
+.gpt-check-input {
+    height: 2.25rem; /* Sets a consistent height for GPT checkboxes */
+    width: 2.25rem; /* Sets a consistent width for GPT checkboxes */
+    background-size: 100% 100% !important; /* Ensures the background image covers the entire checkbox */
 }
 
+/* GPT Checkbox Checked State */
 .gpt-check-input:checked[type=checkbox] {
-    background-image: url("/Common/Images/chatgpt-icon.png");
+    background-image: url("/Common/Images/chatgpt-icon.png"); /* Displays the ChatGPT icon when checked */
 }
 
+/* ChatGPT Icon Style */
 .chatgpt-icon {
-    height: 20px;
-    width: 20px;
-    display: inline-block;
+    height: 20px; /* Sets the height of the ChatGPT icon */
+    width: 20px; /* Sets the width of the ChatGPT icon */
+    display: inline-block; /* Ensures the icon is displayed inline */
 }

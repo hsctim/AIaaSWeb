@@ -1,98 +1,92 @@
 ﻿using System;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using AIaaS.Web.Controllers;
-
 using Abp.Application.Services;
 using Abp.Authorization;
-using AIaaS.Nlp.Training;
-using AIaaS.Nlp;
-using System.Threading.Tasks;
-using System.IO;
-using AIaaS.Nlp.Dtos.NlpCbModel;
-using ApiProtectorDotNet;
-using Abp.Web.Models;
 using Abp.UI;
+using Abp.Web.Models;
 using Abp.Auditing;
+using AIaaS.Nlp;
+using AIaaS.Nlp.Dtos.NlpCbModel;
+using AIaaS.Web.Controllers;
+using AIaaS.Nlp.Training;
 
 namespace AIaaS.Web.Areas.Api.Controllers
 {
+    /// <summary>
+    /// ChatbotAIController
+    /// Handles NLP model training and related operations for chatbots.
+    /// </summary>
     [AbpAllowAnonymous]
     [Area("Api")]
     [DisableAuditing]
     public class ChatbotAIController : AIaaSControllerBase
     {
+        // Input DTO for training requests
         public class RequestTrainingInput
         {
-            public String SecuToken { set; get; }
+            public string SecuToken { get; set; }
         }
 
-
-        private readonly INlpCbModelsAppService _nlpCbModelsAppServic;
+        private readonly INlpCbModelsAppService _nlpCbModelsAppService;
         private readonly NlpTokenHelper _nlpTokenHelper;
 
-        public ChatbotAIController(INlpCbModelsAppService nlpCbModelsAppServic,
-             INlpChatbotsAppService nlpChatbotsAppService,
-             NlpTokenHelper nlpTokenHelper)
+        /// <summary>
+        /// Constructor for ChatbotAIController.
+        /// </summary>
+        /// <param name="nlpCbModelsAppService">Service for NLP model operations.</param>
+        /// <param name="nlpTokenHelper">Helper for token validation.</param>
+        public ChatbotAIController(
+            INlpCbModelsAppService nlpCbModelsAppService,
+            NlpTokenHelper nlpTokenHelper)
         {
-            _nlpCbModelsAppServic = nlpCbModelsAppServic;
+            _nlpCbModelsAppService = nlpCbModelsAppService;
             _nlpTokenHelper = nlpTokenHelper;
         }
 
-
-        //static bool bEnableReturnDataForDebuggingPython = false;
+        /// <summary>
+        /// Requests training for an NLP model.
+        /// </summary>
+        /// <param name="input">Training request input containing a security token.</param>
+        /// <returns>Training data DTO.</returns>
         [HttpPost]
         [WrapResult(WrapOnSuccess = false, WrapOnError = false)]
         public async Task<NlpCbMTrainingDataDTO> RequestTraining([FromBody] RequestTrainingInput input)
         {
-           if (_nlpTokenHelper.IsValid("NLP_TRAINING", input.SecuToken) == false)
-                throw new UserFriendlyException(UserFriendlyExceptionCode.Code("AccessTokenError"), "L:AccessTokenError");
+            ValidateToken(input.SecuToken, "NLP_TRAINING");
 
-            var dto = await _nlpCbModelsAppServic.RequestTraining();
-
-#if DEBUG
-            //bool isDevelopment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development";
-
-            //if (isDevelopment && (dto == null || dto.SourceData == null) && bEnableReturnDataForDebuggingPython)
-            //    dto = await _nlpCbModelsAppServic.RequestTrainingTest();
-#endif
-            return dto;
+            return await _nlpCbModelsAppService.RequestTraining();
         }
 
-
-
+        /// <summary>
+        /// Requests training for debugging purposes.
+        /// </summary>
+        /// <param name="input">Training request input containing a security token.</param>
+        /// <returns>Training data DTO.</returns>
         [HttpPost]
         [WrapResult(WrapOnSuccess = false, WrapOnError = false)]
         public async Task<NlpCbMTrainingDataDTO> RequestTrainingForDebugging([FromBody] RequestTrainingInput input)
         {
-            if (_nlpTokenHelper.IsValid("NLP_TRAINING", input.SecuToken) == false)
-                throw new UserFriendlyException(UserFriendlyExceptionCode.Code("AccessTokenError"), "L:AccessTokenError");
+            ValidateToken(input.SecuToken, "NLP_TRAINING");
 
-            var dto = await _nlpCbModelsAppServic.RequestTraining();
-
-            if (dto == null || dto.SourceData == null)
-                dto = await _nlpCbModelsAppServic.RequestTrainingTest();
-            return dto;
+            var dto = await _nlpCbModelsAppService.RequestTraining();
+            return dto ?? await _nlpCbModelsAppService.RequestTrainingTest();
         }
 
-
-        //[HttpPost]
-        //public void CompleteTraining([FromBody] dynamic input)
-        //{
-        //    //_nlpCbModelsAppServic.CompleteTraining(input);
-        //}
-
-
-
-        //[ApiProtector(ApiProtectionType.ByIpAddress, Limit: 10, TimeWindowSeconds: 20)]
+        /// <summary>
+        /// Completes the training process for an NLP model.
+        /// </summary>
+        /// <param name="input">Input DTO containing training completion details.</param>
+        /// <returns>Action result indicating success or failure.</returns>
+        [HttpPost]
         [WrapResult(WrapOnSuccess = false, WrapOnError = false)]
         public ActionResult CompleteTraining([FromBody] NlpCbMCompleteTrainingInputDto input)
         {
-            if (_nlpTokenHelper.IsValid("NLP_TRAINING", input.SecuToken) == false)
-                throw new UserFriendlyException(UserFriendlyExceptionCode.Code("AccessTokenError"), "L:AccessTokenError");
+            ValidateToken(input.SecuToken, "NLP_TRAINING");
 
             try
             {
-                _nlpCbModelsAppServic.CompleteTraining(input);
+                _nlpCbModelsAppService.CompleteTraining(input);
                 return Content("OK");
             }
             catch (Exception e)
@@ -101,42 +95,62 @@ namespace AIaaS.Web.Areas.Api.Controllers
             }
         }
 
+        /// <summary>
+        /// Marks the training process as incomplete.
+        /// </summary>
+        /// <param name="input">Input DTO containing incomplete training details.</param>
+        /// <returns>Action result indicating success.</returns>
+        [HttpPost]
         [WrapResult(WrapOnSuccess = false, WrapOnError = false)]
         public ActionResult IncompleteTraining([FromBody] NlpCbMIncompleteTrainingInputDto input)
         {
-            if (_nlpTokenHelper.IsValid("NLP_TRAINING", input.SecuToken) == false)
-                throw new UserFriendlyException(UserFriendlyExceptionCode.Code("AccessTokenError"), "L:AccessTokenError");
+            ValidateToken(input.SecuToken, "NLP_TRAINING");
 
-            _nlpCbModelsAppServic.IncompleteTraining(input);
+            _nlpCbModelsAppService.IncompleteTraining(input);
             return Content("OK");
         }
 
-
+        /// <summary>
+        /// Marks the training process as incomplete due to preemption.
+        /// </summary>
+        /// <param name="input">Input DTO containing incomplete training details.</param>
+        /// <returns>Action result indicating success.</returns>
+        [HttpPost]
         [WrapResult(WrapOnSuccess = false, WrapOnError = false)]
         public async Task<ActionResult> IncompleteTrainingByPreemption([FromBody] NlpCbMIncompleteTrainingInputDto input)
         {
-            if (_nlpTokenHelper.IsValid("NLP_TRAINING", input.SecuToken) == false)
-                throw new UserFriendlyException(UserFriendlyExceptionCode.Code("AccessTokenError"), "L:AccessTokenError");
+            ValidateToken(input.SecuToken, "NLP_TRAINING");
 
-            await _nlpCbModelsAppServic.IncompleteTrainingByPreemption(input);
+            await _nlpCbModelsAppService.IncompleteTrainingByPreemption(input);
             return Content("OK");
         }
 
-
         /// <summary>
-        /// 當Python Training程式啟動時，會通知MVC強制取消正在訓練中的模型
-        /// 並清除快取
+        /// Restarts all models currently in training.
         /// </summary>
-        /// <param name="input"></param>
-        /// <returns></returns>
+        /// <param name="input">Input DTO containing security token.</param>
+        /// <returns>Action result indicating success.</returns>
+        [HttpPost]
         [WrapResult(WrapOnSuccess = false, WrapOnError = false)]
         public async Task<ActionResult> RestartAllOnTrainingModel([FromBody] NlpCbMIncompleteTrainingInputDto input)
         {
-            if (_nlpTokenHelper.IsValid("NLP_TRAINING", input.SecuToken) == false)
-                throw new UserFriendlyException(UserFriendlyExceptionCode.Code("AccessTokenError"), "L:AccessTokenError");
+            ValidateToken(input.SecuToken, "NLP_TRAINING");
 
-            await _nlpCbModelsAppServic.RestartAllOnTrainingModelAsync();
+            await _nlpCbModelsAppService.RestartAllOnTrainingModelAsync();
             return Content("OK");
+        }
+
+        /// <summary>
+        /// Validates the provided security token.
+        /// </summary>
+        /// <param name="token">The security token to validate.</param>
+        /// <param name="tokenType">The expected token type.</param>
+        private void ValidateToken(string token, string tokenType)
+        {
+            if (!_nlpTokenHelper.IsValid(tokenType, token))
+            {
+                throw new UserFriendlyException(UserFriendlyExceptionCode.Code("AccessTokenError"), "L:AccessTokenError");
+            }
         }
     }
 }

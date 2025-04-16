@@ -5,14 +5,14 @@ body, html {
 }
 
 .chat {
-    margin-top: auto;
-    margin-bottom: auto;
+    margin: auto 0;
 }
 
 .card {
     height: 500px;
     border-radius: 15px !important;
-    background-color: white !important;
+    background: #fff !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 }
 
 .contacts_body {
@@ -23,6 +23,7 @@ body, html {
 
 .msg_card_body {
     overflow-y: auto;
+    min-height: 100px;
 }
 
 .card-header {

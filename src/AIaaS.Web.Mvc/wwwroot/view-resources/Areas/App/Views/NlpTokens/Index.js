@@ -1,97 +1,96 @@
-﻿(function () {
+﻿/**
+ * NlpTokens Module
+ * Handles the management, filtering, and CRUD operations for NLP tokens.
+ */
+(function () {
     $(function () {
+        const _$nlpTokensTable = $('#NlpTokensTable');
+        const _nlpTokensService = abp.services.app.nlpTokens;
 
-        var _$nlpTokensTable = $('#NlpTokensTable');
-        var _nlpTokensService = abp.services.app.nlpTokens;
-
-        $('.date-picker').datetimepicker({
-            locale: abp.localization.currentLanguage.name,
-            format: 'L'
-        });
-
-        var _permissions = {
+        // Permissions for CRUD operations
+        const _permissions = {
             create: abp.auth.hasPermission('Pages.NlpTokens.Create'),
             edit: abp.auth.hasPermission('Pages.NlpTokens.Edit'),
-            'delete': abp.auth.hasPermission('Pages.NlpTokens.Delete')
+            delete: abp.auth.hasPermission('Pages.NlpTokens.Delete')
         };
 
-        var _createOrEditModal = new app.ModalManager({
+        // Modal manager for creating or editing NLP tokens
+        const _createOrEditModal = new app.ModalManager({
             viewUrl: abp.appPath + 'App/NlpTokens/CreateOrEditModal',
             scriptUrl: abp.appPath + 'view-resources/Areas/App/Views/NlpTokens/_CreateOrEditModal.js',
             modalClass: 'CreateOrEditNlpTokenModal'
         });
 
+        /**
+         * Initializes the date pickers for filtering.
+         */
+        $('.date-picker').datetimepicker({
+            locale: abp.localization.currentLanguage.name,
+            format: 'L'
+        });
 
+        /**
+         * Retrieves the minimum date filter value.
+         * @param {Object} element - The date picker element.
+         * @returns {string|null} - The formatted start date or null if not set.
+         */
+        const getDateFilter = (element) => {
+            const date = element.data("DateTimePicker").date();
+            return date ? date.format("YYYY-MM-DDT00:00:00Z") : null;
+        };
 
+        /**
+         * Retrieves the maximum date filter value.
+         * @param {Object} element - The date picker element.
+         * @returns {string|null} - The formatted end date or null if not set.
+         */
+        const getMaxDateFilter = (element) => {
+            const date = element.data("DateTimePicker").date();
+            return date ? date.format("YYYY-MM-DDT23:59:59Z") : null;
+        };
 
-
-
-        var getDateFilter = function (element) {
-            if (element.data("DateTimePicker").date() == null) {
-                return null;
-            }
-            return element.data("DateTimePicker").date().format("YYYY-MM-DDT00:00:00Z");
-        }
-
-        var getMaxDateFilter = function (element) {
-            if (element.data("DateTimePicker").date() == null) {
-                return null;
-            }
-            return element.data("DateTimePicker").date().format("YYYY-MM-DDT23:59:59Z");
-        }
-
-        var dataTable = _$nlpTokensTable.DataTable({
+        /**
+         * Initializes the DataTable for displaying NLP tokens.
+         */
+        const dataTable = _$nlpTokensTable.DataTable({
             paging: true,
             serverSide: true,
             processing: true,
             listAction: {
                 ajaxFunction: _nlpTokensService.getAll,
-                inputFilter: function () {
-                    return {
-                        filter: $('#NlpTokensTableFilter').val()
-                    };
-                }
+                inputFilter: () => ({
+                    filter: $('#NlpTokensTableFilter').val()
+                })
             },
             columnDefs: [
                 {
                     className: 'control responsive',
                     orderable: false,
-                    render: function () {
-                        return '';
-                    },
+                    render: () => '',
                     targets: 0
                 },
                 {
-                    //width: 120,
                     targets: 1,
                     data: null,
                     orderable: false,
-                    //autoWidth: false,
                     defaultContent: '',
                     rowAction: {
                         cssClass: 'btn btn-brand dropdown-toggle',
-                        text: '<i class="fa fa-cog"></i> ' + app.localize('Actions') + ' <span class="caret"></span>',
+                        text: `<i class="fa fa-cog"></i> ${app.localize('Actions')} <span class="caret"></span>`,
                         items: [
                             {
                                 text: app.localize('Edit'),
                                 iconStyle: 'far fa-edit me-2',
-                                visible: function () {
-                                    return _permissions.edit;
-                                },
-                                action: function (data) {
-                                    _createOrEditModal.open({ id: data.record.nlpToken.id });
-                                }
+                                visible: () => _permissions.edit,
+                                action: (data) => _createOrEditModal.open({ id: data.record.nlpToken.id })
                             },
                             {
                                 text: app.localize('Delete'),
                                 iconStyle: 'far fa-trash-alt me-2',
-                                visible: function () {
-                                    return _permissions.delete;
-                                },
-                                action: function (data) {
-                                    deleteNlpToken(data.record.nlpToken);
-                                }
-                            }]
+                                visible: () => _permissions.delete,
+                                action: (data) => deleteNlpToken(data.record.nlpToken)
+                            }
+                        ]
                     }
                 },
                 {
@@ -107,61 +106,63 @@
             ]
         });
 
-        function getNlpTokens() {
+        /**
+         * Reloads the DataTable with updated data.
+         */
+        const getNlpTokens = () => {
             dataTable.ajax.reload();
-        }
+        };
 
-        function deleteNlpToken(nlpToken) {
+        /**
+         * Deletes an NLP token after confirmation.
+         * @param {Object} nlpToken - The token to delete.
+         */
+        const deleteNlpToken = (nlpToken) => {
             abp.message.confirm(
                 '',
                 app.localize('AreYouSure'),
-                function (isConfirmed) {
+                (isConfirmed) => {
                     if (isConfirmed) {
-                        _nlpTokensService.delete({
-                            id: nlpToken.id
-                        }).done(function () {
-                            getNlpTokens(true);
+                        _nlpTokensService.delete({ id: nlpToken.id }).done(() => {
+                            getNlpTokens();
                             abp.notify.success(app.localize('SuccessfullyDeleted'));
                         });
                     }
                 }
             );
-        }
+        };
 
-        $('#ShowAdvancedFiltersSpan').click(function () {
+        // Event Handlers
+        $('#ShowAdvancedFiltersSpan').click(() => {
             $('#ShowAdvancedFiltersSpan').hide();
             $('#HideAdvancedFiltersSpan').show();
             $('#AdvacedAuditFiltersArea').slideDown();
         });
 
-        $('#HideAdvancedFiltersSpan').click(function () {
+        $('#HideAdvancedFiltersSpan').click(() => {
             $('#HideAdvancedFiltersSpan').hide();
             $('#ShowAdvancedFiltersSpan').show();
             $('#AdvacedAuditFiltersArea').slideUp();
         });
 
-        $('#CreateNewNlpTokenButton').click(function () {
+        $('#CreateNewNlpTokenButton').click(() => {
             _createOrEditModal.open();
         });
 
-
-
-        abp.event.on('app.createOrEditNlpTokenModalSaved', function () {
+        abp.event.on('app.createOrEditNlpTokenModalSaved', () => {
             getNlpTokens();
         });
 
-        $('#GetNlpTokensButton').click(function (e) {
+        $('#GetNlpTokensButton').click((e) => {
             e.preventDefault();
             getNlpTokens();
         });
 
-        $(document).keypress(function (e) {
+        $(document).keypress((e) => {
             if (e.which === 13) {
                 getNlpTokens();
             }
         });
-
-
-
     });
 })();
+

@@ -1,6 +1,11 @@
+/**
+ * NlpCbAgentOperations LESS Stylesheet
+ * This file contains styles for the NLP chatbot agent operations page, including chatroom UI, buttons, and layout.
+ */
+
+/* General Chat Layout */
 .chat {
-    margin-top: auto;
-    margin-bottom: auto;
+    margin: auto 0; /* Center vertically */
 }
 
 .card {
@@ -12,15 +17,15 @@
 .contacts_body {
     padding: 0.75rem 0 !important;
     overflow-y: auto;
-    white-space: nowrap;
+    white-space: nowrap; /* Prevent text wrapping */
 }
 
 .msg_card_body {
-    overflow-y: auto;
+    overflow-y: auto; /* Enable vertical scrolling for messages */
 }
 
 .card-header {
-    border-bottom: 0 !important;
+    border-bottom: 0 !important; /* Remove bottom border */
 }
 
 .webchat-card-footer {
@@ -30,10 +35,12 @@
     padding: 1rem;
 }
 
+/* Centered Container */
 .container {
     align-content: center;
 }
 
+/* Search Input */
 .search {
     border-radius: 15px 0 0 15px !important;
     background-color: rgba(0, 0, 0, 0.3) !important;
@@ -42,10 +49,11 @@
 
     &:focus {
         box-shadow: none !important;
-        outline: 0px !important;
+        outline: 0 !important;
     }
 }
 
+/* Message Input */
 .type_msg {
     border-radius: 15px 0 0 15px !important;
     border: 0 !important;
@@ -56,33 +64,33 @@
 
     &:focus {
         box-shadow: none !important;
-        outline: 0px !important;
-        resize: none;
+        outline: 0 !important;
     }
+}
+
+/* Buttons */
+.attach_btn,
+.send_btn,
+.send_agent_btn,
+.search_btn {
+    border: 0 !important;
+    color: white !important;
+    cursor: pointer;
 }
 
 .attach_btn {
     border-radius: 15px 0 0 15px !important;
     background-color: rgba(0, 0, 0, 0.1) !important;
-    border: 0 !important;
-    color: white !important;
-    cursor: pointer;
 }
 
 .send_btn {
     border-radius: 0 15px 15px 0 !important;
     background-color: rgba(0, 0, 0, 0.2) !important;
-    border: 0 !important;
-    color: white !important;
-    cursor: pointer;
     height: 100%;
 }
 
 .send_agent_btn {
     background-color: rgba(0, 0, 0, 0.2) !important;
-    border: 0 !important;
-    color: white !important;
-    cursor: pointer;
     border-radius: 0;
     height: 100%;
 }
@@ -90,11 +98,9 @@
 .search_btn {
     border-radius: 0 15px 15px 0 !important;
     background-color: rgba(0, 0, 0, 0.3) !important;
-    border: 0 !important;
-    color: white !important;
-    cursor: pointer;
 }
 
+/* Contacts List */
 .contacts {
     list-style: none;
     padding: 0;
@@ -107,10 +113,12 @@
 }
 
 .activeli {
-    background-color: rgba(127, 127, 127, 0.5);
+    background-color: rgba(127, 127, 127, 0.5); /* Highlight active list item */
 }
 
-.user_img {
+/* User Images */
+.user_img,
+.user_img_msg {
     height: 40px;
     width: 40px;
     border: 1.5px solid #f5f6fa;
@@ -119,17 +127,11 @@
 .user_name {
     max-width: 70px;
     text-align: center;
-    word-wrap: normal;
+    word-wrap: break-word;
     white-space: normal;
-    word-break: break-all;
 }
 
-.user_img_msg {
-    height: 40px;
-    width: 40px;
-    border: 1.5px solid #f5f6fa;
-}
-
+/* Image Containers */
 .img_cont {
     position: relative;
 }
@@ -139,63 +141,35 @@
     width: 40px;
 }
 
-.online_icon {
-    position: absolute;
-    height: 20px;
-    width: 20px;
-    background-color: #4cd137;
-    border-radius: 50%;
-    bottom: 0;
-    right: 0;
-    border: 1.5px solid white;
-}
-
-.offline_icon {
-    position: absolute;
-    height: 20px;
-    width: 20px;
-    background-color: #f70d1a;
-    border-radius: 50%;
-    bottom: 0;
-    right: 0;
-    border: 1.5px solid white;
-}
-
+/* Online/Offline Indicators */
+.online_icon,
+.offline_icon,
 .eye_icon {
     position: absolute;
     height: 20px;
     width: 20px;
-    background-color: #f70d1a;
     border-radius: 50%;
     bottom: 0;
     right: 0;
     border: 1.5px solid white;
 }
 
-.offline {
-    background-color: #c23616 !important;
+.online_icon {
+    background-color: #4cd137; /* Green for online */
 }
 
-.user_info {
-    margin-top: auto;
-    margin-bottom: auto;
-    margin-left: 15px;
-
-    span {
-        font-size: 20px;
-        color: white;
-    }
-
-    p {
-        font-size: 10px;
-        color: rgba(255, 255, 255, 0.6);
-    }
+.offline_icon {
+    background-color: #f70d1a; /* Red for offline */
 }
 
+.eye_icon {
+    background-color: #f70d1a; /* Red for eye icon */
+}
+
+/* User Info */
+.user_info,
 .chatroom_info {
-    margin-top: auto;
-    margin-bottom: auto;
-    margin-left: 15px;
+    margin: auto 15px;
 
     span {
         font-size: 20px;
@@ -208,6 +182,7 @@
     }
 }
 
+/* Font Sizes */
 .chatroom_font10 {
     font-size: 10px;
 }
@@ -216,9 +191,9 @@
     font-size: 12px;
 }
 
+/* Video Camera Icon */
 .video_cam {
-    margin-left: 50px;
-    margin-top: 5px;
+    margin: 5px 0 0 50px;
 
     span {
         color: white;
@@ -228,28 +203,26 @@
     }
 }
 
-.msg_cotainer {
-    margin-top: auto;
-    margin-bottom: auto;
+/* Message Containers */
+.msg_cotainer,
+.msg_cotainer_send {
+    margin: auto 0;
     border-radius: 25px;
-    background-color: #82ccdd;
-    padding: 5px 20px 5px 20px;
+    padding: 5px 20px;
     position: relative;
     word-wrap: break-word;
-    word-break: break-all;
+    word-break: break-word;
+}
+
+.msg_cotainer {
+    background-color: #82ccdd; /* Light blue for received messages */
 }
 
 .msg_cotainer_send {
-    margin-top: auto;
-    margin-bottom: auto;
-    border-radius: 25px;
-    background-color: #78e08f;
-    padding: 5px 20px 5px 20px;
-    position: relative;
-    word-wrap: break-word;
-    word-break: break-all;
+    background-color: #78e08f; /* Light green for sent messages */
 }
 
+/* Message Timestamps */
 .msg_time {
     position: absolute;
     left: 0;
@@ -264,21 +237,7 @@
     font-size: 10px;
 }
 
-.msg_head {
-    position: relative;
-}
-
-#action_menu_btn {
-    position: absolute;
-    right: 5px;
-    top: 10px;
-    color: white;
-    cursor: pointer;
-    font-size: 20px;
-    min-width: 2rem;
-    text-align: center;
-}
-
+/* Action Menu */
 .action_menu {
     z-index: 1;
     position: absolute;
@@ -312,57 +271,25 @@
     }
 }
 
+/* Back to List Button */
 .backtolist {
     display: none;
-    -webkit-box-pack: center;
-    -ms-flex-pack: center;
     justify-content: center;
-    -webkit-box-align: center;
-    -ms-flex-align: center;
     align-items: center;
     width: 36px;
     height: 36px;
     position: sticky;
     bottom: 10px;
-    left: 0px;
-    right: 0px;
-    margin-left: auto;
-    margin-right: auto;
+    left: 0;
+    right: 0;
+    margin: auto;
     cursor: pointer;
     z-index: 100;
     background-color: #3699FF;
-    -webkit-box-shadow: 0 0.5rem 1.5rem 0.5rem rgba(0, 0, 0, 0.075);
     box-shadow: 0 0.5rem 1.5rem 0.5rem rgba(0, 0, 0, 0.075);
     opacity: 0;
-    -webkit-transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, -webkit-box-shadow 0.15s ease;
-    transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, -webkit-box-shadow 0.15s ease;
-    transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
-    transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, -webkit-box-shadow 0.15s ease;
+    transition: all 0.15s ease;
     border-radius: 0.42rem !important;
-
-    .svg-icon {
-        svg {
-            height: 24px;
-            width: 24px;
-
-            g {
-                [fill] {
-                    -webkit-transition: fill 0.3s ease;
-                    transition: fill 0.3s ease;
-                    fill: #ffffff;
-                }
-            }
-
-            &:hover {
-                g {
-                    [fill] {
-                        -webkit-transition: fill 0.3s ease;
-                        transition: fill 0.3s ease;
-                    }
-                }
-            }
-        }
-    }
 
     > i {
         font-size: 1.3rem;
@@ -370,52 +297,11 @@
     }
 
     &:hover {
-        > i {
-            color: #ffffff;
-        }
-
-        .svg-icon {
-            svg {
-                g {
-                    [fill] {
-                        -webkit-transition: fill 0.3s ease;
-                        transition: fill 0.3s ease;
-                        fill: #ffffff;
-                    }
-                }
-
-                &:hover {
-                    g {
-                        [fill] {
-                            -webkit-transition: fill 0.3s ease;
-                            transition: fill 0.3s ease;
-                        }
-                    }
-                }
-            }
-        }
+        opacity: 1;
     }
 }
 
-[data-backtolist="on"] {
-    .backtolist {
-        opacity: 0.3;
-        -webkit-animation: animation backtolist 4s ease-out 1;
-        animation: animation backtolist 4s ease-out 1;
-        display: -webkit-box;
-        display: -ms-flexbox;
-        display: flex;
-
-        &:hover {
-            -webkit-transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, -webkit-box-shadow 0.15s ease;
-            transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, -webkit-box-shadow 0.15s ease;
-            transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
-            transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, -webkit-box-shadow 0.15s ease;
-            opacity: 1;
-        }
-    }
-}
-
+/* Responsive Styles */
 @media (max-width: 576px) {
     .contacts_card {
         margin-bottom: 15px !important;

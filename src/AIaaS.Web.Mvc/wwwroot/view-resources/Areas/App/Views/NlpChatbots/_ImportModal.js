@@ -1,76 +1,85 @@
-﻿(function ($) {
+﻿/**
+ * ImportNlpChatbotModal
+ * Handles the import functionality for NLP chatbots within a modal interface.
+ */
+(function ($) {
     app.modals.ImportNlpChatbotModal = function () {
-        var _nlpChatbotsService = abp.services.app.nlpChatbots;
+        const _nlpChatbotsService = abp.services.app.nlpChatbots;
 
-        var _modalManager;
-        var _$nlpChatbotInformationForm = null;
+        let _modalManager;
+        let _$nlpChatbotInformationForm = null;
 
+        /**
+         * Initializes the modal and sets up form validation.
+         * @param {Object} modalManager - The modal manager instance.
+         */
         this.init = function (modalManager) {
             _modalManager = modalManager;
-            _modalManager.getModal().find('div.modal-lg').removeClass('modal-lg');
+            const $modal = _modalManager.getModal();
 
-            _$nlpChatbotInformationForm = _modalManager.getModal().find('form[name=NlpChatbotInformationsForm]');
+            // Adjust modal size
+            $modal.find('div.modal-lg').removeClass('modal-lg');
 
+            // Initialize the form and enable validation
+            _$nlpChatbotInformationForm = $modal.find('form[name=NlpChatbotInformationsForm]');
             _$nlpChatbotInformationForm.validate();
-
         };
 
-        $('#ImportChatbotFromFile').change(function (e) {
-            uploadSubmit();
+        /**
+         * Handles the file input change event to trigger the import process.
+         */
+        $('#ImportChatbotFromFile').change(function () {
+            handleFileUpload();
         });
 
-        function uploadSubmit() {
-            debugger;
+        /**
+         * Handles the file upload and submission process.
+         */
+        function handleFileUpload() {
+            const file = $('#ImportChatbotFromFile')[0].files[0];
 
-            var file = $('#ImportChatbotFromFile')[0].files[0];
+            // Validate file size (limit: 100MB)
+            if (file && file.size > 104857600) {
+                abp.message.warn(app.localize('JsonFile_Warn_SizeLimit', 100));
+                $('#ImportChatbotFromFile').val(""); // Reset the file input
+                return;
+            }
 
+            // Serialize form data
+            const dto = _$nlpChatbotInformationForm.serializeFormToObject();
+            const formData = new FormData();
+
+            // Append form data and file to FormData
+            Object.keys(dto).forEach((key) => formData.append(key, dto[key]));
             if (file) {
-                if (file.size > 104857600) //1MB
-                {
-                    abp.message.warn(app.localize('JsonFile_Warn_SizeLimit', 100));
-                    $('#ImportChatbotFromExcelFile').val("");
-                    return false;
-                }
-            }
-
-            var dto = _$nlpChatbotInformationForm.serializeFormToObject();
-            //dto["IgnoreDuplication"] = $('#IgnoreDuplication').prop("checked")
-
-            var formData = new FormData();
-            for (var k in dto) {
-                formData.append(k, dto[k]);
-            }
-
-            if (file)
                 formData.append("file", file);
+            }
 
-            //$('#ImportQAsFromExcelButton').removeAttr('for').empty()
-            //    .attr('aria-disabled', "true")
-            //    .addClass("disabled")
-            //    .append($("<i/>").addClass("spinner-border spinner-border-sm me-5"))
-            //    .append(app.localize("ImportingFromExcel"));
-
+            // Disable the file input and set the modal to busy state
+            $('#ImportChatbotFromFile').attr("disabled", true);
             _modalManager.setBusy(true);
 
-            $('#ImportChatbotFromFile').attr("disabled", true);
-            return abp.ajax({
+            // Submit the form data via AJAX
+            abp.ajax({
                 url: abp.appPath + 'App/NlpChatbots/ImportJsonFile',
                 type: 'POST',
                 data: formData,
-                //async: false,
-                //cache: false,
                 contentType: false,
-                processData: false,
+                processData: false
             }).done(function () {
                 abp.notify.info(app.localize('ImportSuccessfully'));
                 _modalManager.close();
                 abp.event.trigger('app.createOrEditNlpChatbotModalSaved');
             }).fail(function () {
-                _modalManager.close();
+                abp.message.error(app.localize('ImportFailed'));
             }).always(function () {
+                // Re-enable the file input and reset the modal busy state
                 $('#ImportChatbotFromFile').attr("disabled", false);
                 _modalManager.setBusy(false);
             });
         }
     };
 })(jQuery);
+
+
+
