@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<Import Project="..\..\common.props"></Import>
+	<PropertyGroup>
+    <TargetFramework>net7.0</TargetFramework>
+		<AssetTargetFallback>$(AssetTargetFallback);portable-net45+win8+wp8+wpa81;</AssetTargetFallback>
+		<AssemblyName>AIaaS.Application</AssemblyName>
+		<PackageId>AIaaS.Application</PackageId>
+		<GenerateAssemblyTitleAttribute>false</GenerateAssemblyTitleAttribute>
+		<GenerateAssemblyDescriptionAttribute>false</GenerateAssemblyDescriptionAttribute>
+		<GenerateAssemblyConfigurationAttribute>false</GenerateAssemblyConfigurationAttribute>
+		<GenerateAssemblyCompanyAttribute>false</GenerateAssemblyCompanyAttribute>
+		<GenerateAssemblyProductAttribute>false</GenerateAssemblyProductAttribute>
+		<RootNamespace>AIaaS</RootNamespace>
+		<GenerateDocumentationFile>False</GenerateDocumentationFile>
+		<LangVersion>latest</LangVersion>
+	</PropertyGroup>
+  
+	<ItemGroup>
+    <PackageReference Include="Abp.EntityFrameworkCore.EFPlus" Version="8.1.0" />
+        <PackageReference Include="MiniExcel" Version="1.30.2" />
+		<PackageReference Include="LineBotSDK" Version="2.4.32" />
+    	<PackageReference Include="OpenAI" Version="1.7.2" />
+  </ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\ApiProtectorDotNet\ApiProtectorDotNet.csproj" />
+		<ProjectReference Include="..\AIaaS.Application.Shared\AIaaS.Application.Shared.csproj" />
+		<ProjectReference Include="..\AIaaS.Core\AIaaS.Core.csproj" />
+		<ProjectReference Include="..\AIaaS.EntityFrameworkCore\AIaaS.EntityFrameworkCore.csproj" />
+		<ProjectReference Include="..\ReflectSoftware\ReflectSoftware.Facebook.Messenger.AspNetCore.Webhook\ReflectSoftware.Facebook.Messenger.AspNetCore.Webhook.csproj" />
+		<ProjectReference Include="..\ReflectSoftware\ReflectSoftware.Facebook.Messenger.Client\ReflectSoftware.Facebook.Messenger.Client.csproj" />
+		<ProjectReference Include="..\ReflectSoftware\ReflectSoftware.Facebook.Messenger.Common\ReflectSoftware.Facebook.Messenger.Common.csproj" />
+	</ItemGroup>
+</Project>

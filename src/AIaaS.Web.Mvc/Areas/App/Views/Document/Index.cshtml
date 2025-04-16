@@ -1,0 +1,46 @@
+﻿@using System.Globalization
+@using AIaaS
+@using AIaaS.Localization
+@using AIaaS.Web.Models.Document
+@using AIaaS.Web.Areas.App.Startup
+@using System.Threading
+
+@model DocumentViewModel
+@{ 
+    if (string.Compare(Model.Document, "Privacy", true) == 0 || string.Compare(Model.Document, "Terms", true) == 0)
+        ViewBag.CurrentPageName = AppPageNames.Info.Main;
+    else
+        ViewBag.CurrentPageName = AppPageNames.Document.Main; }
+
+<div class="content d-flex flex-column flex-column-fluid">
+
+    @if (string.Compare(Model.Document, "Privacy", true) == 0 || string.Compare(Model.Document, "Terms", true) == 0)
+    {
+        <abp-page-subheader title="@L("Info:" + Model.Document)" description="@L("Info:" + Model.Document)">
+            </abp-page-subheader> 
+    }
+    else
+    {
+        <abp-page-subheader title="@L("Document")" description="@L("Document:" + Model.Document)">
+        </abp-page-subheader>
+    }
+
+    <div class="@(await GetContainerClass())">
+        @try
+        {
+            var theme = await GetTheme();
+            var text = System.IO.File.ReadAllText(@System.IO.Path.Combine(Model.ContentRootPath, "Document", Model.Language, Model.Document + ".html"));
+
+            if (theme.BaseSettings.Layout.DarkMode)
+                text = text.Replace("github-markdown.min.css", "github-markdown-dark.min.css");
+            else
+                text = text.Replace("github-markdown.min.css", "github-markdown-light.min.css");
+
+
+            @Html.Raw(text);
+        }
+        catch (Exception)
+        {
+        }
+    </div>
+</div>

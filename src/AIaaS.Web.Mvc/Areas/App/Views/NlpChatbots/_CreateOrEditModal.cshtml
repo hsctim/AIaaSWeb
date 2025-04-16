@@ -1,0 +1,439 @@
+﻿@using System.Globalization
+@using AIaaS.Web.Areas.App.Models.Common.Modals
+@using AIaaS.Web.Areas.App.Models.NlpChatbots
+@model CreateOrEditNlpChatbotModalViewModel
+@using Abp.Extensions
+
+@{
+    bool IsViewMode = Model.IsViewMode || (Model.IsEditMode == true) && (PermissionChecker.IsGranted("Pages.NlpChatbot.NlpChatbots.Edit") == false);
+
+    @await Html.PartialAsync("~/Areas/App/Views/Common/Modals/_ModalHeader.cshtml", new ModalHeaderViewModel(
+                IsViewMode ? @L("ViewNlpChatbot") : @L("EditNlpChatbot")))
+
+    var baseUrl = $"{Context.Request.Scheme}://{Context.Request.Host.Value.ToString()}{Context.Request.PathBase.Value.ToString()}/";
+    var testWebUrl = baseUrl + "webchat/" + Model.NlpChatbot.Id.ToString();
+    var botIconUrl = baseUrl + "Chatbot/ProfilePicture/" + Guid.Empty.ToString();
+    var testWebIconUrl = testWebUrl + "&chatbotIcon=" + botIconUrl;
+
+    var basicJS = "<script type='text/javascript' " +
+        "src='" + baseUrl + "webchat/chatBadge.min.js' " +
+        "id='chatBadgeScript' " +
+        "chatbotId='" + Model.NlpChatbot.Id.ToString() + "'> " +
+        "</script>";
+
+    var advancedJS = "<script type='text/javascript' " +
+        "src='" + baseUrl + "webchat/chatBadge.min.js' " +
+        "id='chatBadgeScript' " +
+        "chatbotId='" + Model.NlpChatbot.Id.ToString() + "'> " +
+        "budgeStyle='top:45%; width:64px; height:64px; right:10px; overflow:hidden; position:fixed; z-index:99900;' " +
+        "paneStyle='bottom:0px; width:450px; height:80%; right:10px; overflow:hidden; position:fixed; z-index:99990;' " +
+        "chatbotIcon='" + baseUrl + "Chatbot/ProfilePicture/00000000-0000-0000-0000-000000000000' " +
+        "badgeIcon='" + baseUrl + "Chatbot/ProfilePicture/00000000-0000-0000-0000-000000000000' " +
+    "</script>";
+
+    var facebookWebhook = baseUrl + "Facebook/" + Model.NlpChatbot.Id.ToString();
+    var lineWebhook = baseUrl + "Line/" + Model.NlpChatbot.Id.ToString();
+
+}
+
+@{
+    string chatbotPicturePath;
+
+    if (Model.NlpChatbot.ChatbotPictureId == null)
+        chatbotPicturePath = "/Chatbot/ProfilePicture";
+    else
+        chatbotPicturePath = "/Chatbot/ProfilePicture/" + Model.NlpChatbot.ChatbotPictureId;
+}
+
+
+@section Styles
+    {
+    <link rel="stylesheet" abp-href="/view-resources/Areas/App/Views/NlpChatbots/Index.css" asp-append-version="true" />
+}
+
+<div class="modal-body">
+    <form name="NlpChatbotInformationsForm" role="form" class="form-validation">
+        <input type="hidden" id="defaultPredThreshold" value="@Model.NlpChatbot.DefaultPredThreshold" />
+        <input type="hidden" id="defaultSuggestionThreshold" value="@Model.NlpChatbot.DefaultSuggestionThreshold" />
+        <input type="hidden" id="defaultWSPredThreshold" value="@Model.NlpChatbot.DefaultWSPredThreshold" />
+
+        @if (Model.IsEditMode)
+        {
+            <input type="hidden" name="id" value="@Model.NlpChatbot.Id" />
+        }
+
+        @if (IsViewMode)
+        {
+            <input type="hidden" id="IsViewMode" value="1" />
+        }
+        else
+        {
+            <input type="hidden" id="IsViewMode" value="0" />
+        }
+
+        <ul class="nav nav-tabs" role="tablist">
+            <li class="nav-item">
+                <a href="#ChatbotInformationsTab" class="nav-link active" data-bs-toggle="tab" role="tab">
+                    @L("ChatbotInformations")
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#WebTab" data-bs-toggle="tab" role="tab" class="nav-link">
+                    @L("ChatbotWebTab")
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#FacebookTab" data-bs-toggle="tab" role="tab" class="nav-link">
+                    @L("ChatbotFacebookTab")
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#LineTab" data-bs-toggle="tab" role="tab" class="nav-link">
+                    @L("ChatbotLineTab")
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#WebApiTab" data-bs-toggle="tab" role="tab" class="nav-link">
+                    WebAPI
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a href="#ChatPalModelTab" data-bs-toggle="tab" role="tab" class="nav-link">
+                    @L("ChatPalModelTab")
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a href="#GPTTab" data-bs-toggle="tab" role="tab" class="nav-link">
+                    @L("GPTTab")
+                </a>
+            </li>
+
+
+        </ul>
+        <div class="tab-content">
+            <div class="tab-pane pt-5 active" id="ChatbotInformationsTab" role="tabpanel">
+                <div class="row">
+                    <div class="col-sm-3 text-center margin-top-15 margin-bottom-15">
+                        <div class="mb-5">
+                            <div class="d-block" width="100px" height="100px">
+                                <img id="ChatbotImage" src="@Url.Content(chatbotPicturePath)" style="max-height: 100px; max-width:100px;" class="d-block mx-auto mb-5" />
+                            </div>
+                            <input class="form-control d-none" id="NlpChatbot_ImageFileObj" type="file" name="imageFileObj" accept=".jpg,.jpeg,.png,.gif" />
+
+                            @if (IsViewMode == false)
+                            {
+                                <div class="btn-group" role="group">
+                                    <label for="NlpChatbot_ImageFileObj" id="ChangePictureLabel" class="btn btn-light-primary fw-bold mt-2">@L("UploadProfilePicture")</label>
+                                    <label id="ChangePictureLabel2" class="btn btn-light-primary fw-bold mt-2 dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown">
+                                    </label>
+                                    <ul class="dropdown-menu" aria-labelledby="ChangePictureLabel2">
+                                        <li class="dropdown-item" href="#">
+                                            @foreach (var item in Model.PictureList)
+                                            {
+                                                <img class="nlpchatbotimg" src="/Chatbot/ProfilePicture/@item" data-filename="@item" />
+                                            }
+                                        </li>
+                                    </ul>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                    <div class="col-sm-9">
+                        <div class="mb-5">
+                            <label class="form-label" for="NlpChatbot_Name">@L("Name")</label>
+                            <input class="form-control" id="NlpChatbot_Name"
+                                   value="@Model.NlpChatbot.Name" type="text" name="name" required
+                                   maxlength="@AIaaS.Nlp.NlpChatbotConsts.MaxNameLength"
+                                   minlength="@AIaaS.Nlp.NlpChatbotConsts.MinNameLength"
+                                   placeholder=@L("InputNlpChatbotName") />
+                        </div>
+
+                        <div class="mb-5">
+                            <label class="form-label" for="LanguageSelect">@L("ChatbotUILanguage")</label>
+                            @Html.DropDownList("language", Model.LanguageSelectList, new { @class = "form-select", id = "LanguageSelect", @required = "required" })
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-5">
+                    <label for="NlpChatbot_GreetingMsg" class="form-label">@L("GreetingMsg")</label>
+                    <input class="form-control" id="NlpChatbot_GreetingMsg"
+                           value="@Model.NlpChatbot.GreetingMsg" type="text" name="greetingMsg"
+                           maxlength="@AIaaS.Nlp.NlpChatbotConsts.MaxGreetingMsgLength"
+                           minlength="@AIaaS.Nlp.NlpChatbotConsts.MinGreetingMsgLength"
+                           placeholder=@L("InputGreetingMsg") />
+                </div>
+
+                <div class="mb-5">
+                    <label for="NlpChatbot_FailedMsg" class="form-label">@L("FailedMsg")</label>
+                    <input class="form-control" id="NlpChatbot_FailedMsg"
+                           value="@Model.NlpChatbot.FailedMsg" type="text" name="failedMsg"
+                           maxlength="@AIaaS.Nlp.NlpChatbotConsts.MaxFailedMsgLength"
+                           minlength="@AIaaS.Nlp.NlpChatbotConsts.MinFailedMsgLength"
+                           placeholder=@L("InputFailedMsg") />
+                </div>
+
+                <div class="mb-5">
+                    <label for="NlpChatbot_AlternativeQuestion" class="form-label">@L("AlternativeQuestion")</label>
+                    <input class="form-control" id="NlpChatbot_AlternativeQuestion"
+                           value="@Model.NlpChatbot.AlternativeQuestion" type="text" name="AlternativeQuestion"
+                           maxlength="@AIaaS.Nlp.NlpChatbotConsts.MaxAlternativeQuestionLength"
+                           minlength="@AIaaS.Nlp.NlpChatbotConsts.MinAlternativeQuestionLength"
+                           placeholder=@L("InputAlternativeQuestion") />
+                </div>
+
+                <input class="form-control" id="NlpChatbot_ImageFile" type="hidden" name="imageFileName" />
+
+                <label class="checkbox checkbox-outline">
+                    <label for="NlpChatbot_Disabled" class="form-check form-check-custom form-check-sm">
+                        <input id="NlpChatbot_Disabled" type="checkbox" name="disabled" class="form-check-input" value="true" @Html.Raw(Model.NlpChatbot.Disabled ? "checked=\"checked\"" : "") />
+                        <span class="form-check-label">
+                            @L("DisabledChatbot")
+                        </span>
+                    </label>
+                </label>
+            </div>
+
+            <div class="tab-pane pt-5" id="WebTab" role="tabpanel">
+                <div class="mb-5">
+                    <label for="NlpChatbot_EnableWebChat" class="form-check form-check-custom form-check-sm">
+                        <input id="NlpChatbot_EnableWebChat" type="checkbox" name="enableWebChat" class="form-check-input" value="true" @Html.Raw(Model.NlpChatbot.EnableWebChat ? "checked=\"checked\"" : "") />
+                        <span class="form-check-label">
+                            @L("CbEnableWebChat")
+                        </span>
+                    </label>
+                </div>
+
+                <div class="mb-5 ms-10">
+                    <label class="form-label">@L("CbAddChatbotJs")</label>
+                    <nav>
+                        <div class="nav nav-tabs" id="nav-tab-2" role="tablist">
+                            <a class="nav-link active" id="nav-home-tab" data-bs-toggle="tab" href="#nav-webchat-js-1" role="tab" aria-controls="nav-home" aria-selected="true">@L("BasicWebChatJsTab")</a>
+                            <a class="nav-link" id="nav-profile-tab" data-bs-toggle="tab" href="#nav-webchat-js-2" role="tab" aria-controls="nav-profile" aria-selected="false" title="@L("AdvWebChatJsTabTitle")">@L("AdvWebChatJsTab")</a>
+                        </div>
+                    </nav>
+                    <div class="tab-content" id="nav-tabContent-2">
+                        <div class="tab-pane fade show active" id="nav-webchat-js-1" role="tabpanel" aria-labelledby="nav-webchat-1-tab">
+
+                            <div class="pe-2">
+                                <textarea class="form-control bg-light" rows="3" readonly>@basicJS</textarea>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="nav-webchat-js-2" role="tabpanel" aria-labelledby="nav-webchat-2-tab">
+                            <div class="pe-2">
+                                <textarea class="form-control bg-light" rows="5" readonly>@advancedJS</textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-5 ms-10">
+                    <label class="form-label">@L("CbTestWebChat")</label>
+                    <nav>
+                        <div class="nav nav-tabs" id="nav-tabs-1" role="tablist">
+                            <a class="nav-link active" id="nav-home-tab" data-bs-toggle="tab" href="#nav-webchat-1" role="tab" aria-controls="nav-home" aria-selected="true">@L("BasicWebChatTab")</a>
+                            <a class="nav-link" id="nav-profile-tab" data-bs-toggle="tab" href="#nav-webchat-2" role="tab" aria-controls="nav-profile" aria-selected="false" title="@L("AdvWebChatTabTitle")">@L("AdvWebChatTab")</a>
+                        </div>
+                    </nav>
+                    <div class="tab-content" id="nav-tabContent-1">
+                        <div class="tab-pane fade show active" id="nav-webchat-1" role="tabpanel" aria-labelledby="nav-webchat-1-tab">
+                            <textarea id="CbBasicJsp" class="form-control bg-light" rows="2" readonly>@testWebUrl</textarea>
+                            <div class="text-end mt-3">
+                                <a class="btn btn-light-primary btn-sm" href="@testWebUrl" title="@testWebUrl" target="_blank">
+                                    <i class="flaticon-browser me-3"></i>
+                                    @L("CbOpenWebChat")
+                                </a>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="nav-webchat-2" role="tabpanel" aria-labelledby="nav-webchat-2-tab">
+                            <textarea id="CbAdvJsp" class="form-control bg-light" rows="3" readonly>@testWebIconUrl</textarea>
+                            <div class="text-end mt-3">
+                                <a class="btn btn-light-primary btn-sm" href="@testWebIconUrl" title="@testWebIconUrl" target="_blank">
+                                    <i class="flaticon-browser me-3"></i>
+                                    @L("CbOpenWebChat")
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-pane pt-5" id="FacebookTab" role="tabpanel">
+                <div class="mb-5">
+                    <label for="NlpChatbot_EnableFacebook" class="form-check form-check-custom form-check-sm">
+                        <input id="NlpChatbot_EnableFacebook" type="checkbox" name="enableFacebook" class="form-check-input" value="true" @Html.Raw(Model.NlpChatbot.EnableFacebook ? "checked=\"checked\"" : "") />
+                        <span class="form-check-label">
+                            @L("CbEnableFacebookMessenger")
+                        </span>
+                    </label>
+                </div>
+                <div class="ms-10">
+                    <div class="mb-5">
+                        <label class="form-label">@L("FacebookWebhook")</label>
+                        <textarea class="form-control bg-light" rows="2" readonly>@facebookWebhook</textarea>
+                    </div>
+
+                    <div class="mb-5">
+                        <label class="form-label" for="NlpChatbot_FacebookToken">@L("FacebookVerifyToken")</label>
+
+                        <textarea id="NlpChatbot_FacebookVerifyToken" name="facebookVerifyToken" class="form-control @(Model.NlpChatbot.FacebookVerifyToken.IsNullOrEmpty() ? "" : "edited")" rows="2" maxlength="@AIaaS.Nlp.NlpChatbotConsts.MaxFacebookVerifyTokenLength" minlength="@AIaaS.Nlp.NlpChatbotConsts.MinFacebookVerifyTokenLength">@Model.NlpChatbot.FacebookVerifyToken</textarea>
+                    </div>
+
+                    <div class="mb-5">
+                        <label class="form-label" for="NlpChatbot_FacebookToken">@L("FacebookAccessToken")</label>
+
+                        <textarea id="NlpChatbot_FacebookAccessToken" name="facebookAccessToken" class="form-control @(Model.NlpChatbot.FacebookAccessToken.IsNullOrEmpty() ? "" : "edited")" rows="2" maxlength="@AIaaS.Nlp.NlpChatbotConsts.MaxFacebookAccessTokenLength" minlength="@AIaaS.Nlp.NlpChatbotConsts.MinFacebookAccessTokenLength">@Model.NlpChatbot.FacebookAccessToken</textarea>
+                    </div>
+
+                    <div class="mb-5">
+                        <label for="NlpChatbot_FacebookToken">@L("FacebookSecretKey")</label>
+
+                        <textarea id="NlpChatbot_FacebookSecretKey" name="facebookSecretKey" class="form-control @(Model.NlpChatbot.FacebookSecretKey.IsNullOrEmpty() ? "" : "edited")" rows="2" maxlength="@AIaaS.Nlp.NlpChatbotConsts.MaxFacebookSecretKeyLength" minlength="@AIaaS.Nlp.NlpChatbotConsts.MinFacebookSecretKeyLength">@Model.NlpChatbot.FacebookSecretKey</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-pane pt-5" id="LineTab" role="tabpanel">
+                <div class="mb-5">
+                    <label for="NlpChatbot_EnableLine" class="form-check form-check-custom form-check-sm">
+                        <input id="NlpChatbot_EnableLine" type="checkbox" name="enableLine" class="form-check-input" value="true" @Html.Raw(Model.NlpChatbot.EnableLine ? "checked=\"checked\"" : "") />
+                        <span class="form-check-label">
+                            @L("CbEnableLine")
+                        </span>
+                    </label>
+                </div>
+
+                <div class="ms-10">
+                    <div class="mb-5">
+                        <label class="form-label">@L("LineWebhook")</label>
+                        <textarea class="form-control bg-light" rows="2" readonly>@lineWebhook</textarea>
+                    </div>
+
+                    <div class="mb-5">
+                        <label class="form-label" for="NlpChatbot_LineToken">@L("LineToken")</label>
+                        <textarea id="NlpChatbot_LineToken" name="lineToken" class="form-control @(Model.NlpChatbot.LineToken.IsNullOrEmpty() ? "" : "edited")" rows="2" maxlength="@AIaaS.Nlp.NlpChatbotConsts.MaxLineTokenLength" minlength="@AIaaS.Nlp.NlpChatbotConsts.MinLineTokenLength">@Model.NlpChatbot.LineToken</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-pane pt-5" id="WebApiTab" role="tabpanel">
+                <div class="mb-5">
+                    <label for="NlpChatbot_EnableWebAPI" class="form-check form-check-custom form-check-sm">
+                        <input id="NlpChatbot_EnableWebAPI" type="checkbox" name="enableWebAPI" class="form-check-input" value="true" @Html.Raw(Model.NlpChatbot.EnableWebAPI ? "checked=\"checked\"" : "") />
+                        <span class="form-check-label">
+                            @L("CbEnableWebAPI")
+                        </span>
+                    </label>
+                </div>
+
+                <div class="ms-10">
+                    <div class="mb-5">
+                        <label class="form-label" for="NlpChatbot_WebApiSecret">@L("ChatPalWebApiSecret")</label>
+
+                        <textarea id="NlpChatbot_WebApiSecret" name="webApiSecret" class="form-control @(Model.NlpChatbot.WebApiSecret.IsNullOrEmpty() ? "" : "edited")" rows="2" maxlength="@AIaaS.Nlp.NlpChatbotConsts.MaxWebApiSecretLength" minlength="@AIaaS.Nlp.NlpChatbotConsts.MinWebApiSecretLength">@Model.NlpChatbot.WebApiSecret</textarea>
+                    </div>
+                </div>
+
+                <div class="ms-10">
+
+                    <div class="mt-10 mb-5">
+                        <label for="ChatPal_EnableWebHook" class="form-check form-check-custom form-check-sm">
+                            <input id="ChatPal_EnableWebHook" type="checkbox" name="enableWebhook" class="form-check-input" value="true" @Html.Raw(Model.NlpChatbot.EnableWebhook ? "checked=\"checked\"" : "") />
+                            <span class="form-check-label">
+                                @L("EnableChatPalWebhook")
+                            </span>
+                        </label>
+                    </div>
+
+                    <div class="ms-10">
+                        <div class="mb-5">
+                            <label class="form-label" for="NlpChatbot_WebApiSecret">@L("ChatPalWebhookSecret")</label>
+
+                            <textarea id="ChatPal_WebHookSecret" name="webhookSecret" class="form-control @(Model.NlpChatbot.WebhookSecret.IsNullOrEmpty() ? "" : "edited")" rows="2" maxlength="@AIaaS.Nlp.NlpChatbotConsts.MaxWebhookSecretLength" minlength="@AIaaS.Nlp.NlpChatbotConsts.MinWebhookSecretLength">@Model.NlpChatbot.WebhookSecret</textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-pane pt-5" id="ChatPalModelTab" role="tabpanel">
+
+                <div class="mb-5 row">
+                    <div class="col-12">
+                        <label class="form-label" for="PredThresholdText">@L("PredThreshold")</label>
+                    </div>
+                    <div class="col-12">
+                        <input id="PredThreshold" name="predThreshold" class="form-control" value="@Model.NlpChatbot.PredThreshold" type="number" step="0.01" max="1.0" min="0.1" />
+                    </div>
+                </div>
+
+                <div class="mb-5 row">
+                    <div class="col-12">
+                        <label class="form-label" for="WSPredThreshold">@L("WSPredThreshold")</label>
+                    </div>
+                    <div class="col-12">
+                        <input id="WSPredThreshold" name="wSPredThreshold" class="form-control" value="@Model.NlpChatbot.WSPredThreshold" type="number" step="0.01" max="1.0" min="0.1" />
+                    </div>
+                </div>
+
+
+                <div class="mb-5 row">
+                    <div class="col-12">
+                        <label class="form-label" for="SuggestionThreshold">@L("SuggestionThreshold")</label>
+                    </div>
+                    <div class="col-12">
+                        <input id="SuggestionThreshold" name="suggestionThreshold" class="form-control" value="@Model.NlpChatbot.SuggestionThreshold" type="number" step="0.01" max="1.0" min="0.1" />
+                    </div>
+                </div>
+
+                <div class="text-end">
+                    <button type="button" id="ResetThreshold" class="btn btn-light-primary fw-bold">@L("Reset")</button>
+                </div>
+
+            </div>
+
+            <div class="tab-pane pt-5" id="GPTTab" role="tabpanel">
+
+                <div class="mb-5">
+                    <label class="form-label" for="GPTOptionsList">@L("GPTSelection")</label>
+                    @Html.DropDownList("enableOPENAI", Model.GPTOptionsList, new { @class = "form-select", id = "GPTOptionsList", @required = "required" })
+                </div>
+
+                <div class="mb-5" id="GPTOptionsArea">
+                    <div class="mb-5">
+                        <label class="form-label" for="OPENAI_APIORG">@L("OPENAI_APIORG")</label>
+                        <textarea id="OPENAI_APIORG" name="oPENAIOrg" class="form-control @(Model.NlpChatbot.OPENAIOrg.IsNullOrEmpty() ? "" : "edited")" rows="2" maxlength="@AIaaS.Nlp.NlpChatbotConsts.MaxOPENAIOrgLength" minlength="@AIaaS.Nlp.NlpChatbotConsts.MinOPENAIOrgLength">@Model.NlpChatbot.OPENAIOrg</textarea>
+                    </div>
+
+                    <div class="mb-5">
+                        <label class="form-label" for="OPENAI_APIKEY">@L("OPENAI_APIKEY")</label>
+                        <textarea id="OPENAI_APIKEY" name="oPENAIKey" class="form-control @(Model.NlpChatbot.OPENAIKey.IsNullOrEmpty() ? "" : "edited")" rows="2" maxlength="@AIaaS.Nlp.NlpChatbotConsts.MaxOPENAIKeyLength" minlength="@AIaaS.Nlp.NlpChatbotConsts.MinOPENAIKeyLength">@Model.NlpChatbot.OPENAIKey</textarea>
+                    </div>
+
+                    <div class="mb-5">
+                        <label class="form-label" for="OPENAI_PARAMETERS">@L("GPT_Parameters")</label>
+                        <textarea id="OPENAI_PARAMETERS" name="openAIParam" class="form-control @(Model.NlpChatbot.OpenAIParam.IsNullOrEmpty() ? "" : "edited")" rows="3" maxlength="@AIaaS.Nlp.NlpChatbotConsts.MaxOpenAIParamLength" minlength="@AIaaS.Nlp.NlpChatbotConsts.MinOpenAIParamLength">@Model.NlpChatbot.OpenAIParam</textarea>
+                    </div>
+
+
+                    <div class="mt-10 mb-5">
+                        <label for="GPT_EnableCache" class="form-check form-check-custom form-check-sm">
+                            <input id="GPT_EnableCache" type="checkbox" name="oPENAICache" class="form-check-input" value="true" @Html.Raw(Model.NlpChatbot.OPENAICache ? "checked=\"checked\"" : "") />
+                            <span class="form-check-label">
+                                @L("GPT_EnableCache")
+                            </span>
+                        </label>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+@{
+    if (IsViewMode)
+        @await Html.PartialAsync("~/Areas/App/Views/Common/Modals/_ModalFooterWithClose.cshtml")
+    else
+        @await Html.PartialAsync("~/Areas/App/Views/Common/Modals/_ModalFooterWithSaveAndCancel.cshtml")
+}

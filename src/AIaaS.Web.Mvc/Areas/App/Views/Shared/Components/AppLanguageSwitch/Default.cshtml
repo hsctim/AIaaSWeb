@@ -1,0 +1,72 @@
+﻿@using System.Globalization
+@model AIaaS.Web.Areas.App.Models.Layout.LanguageSwitchViewModel
+
+@if (CultureInfo.CurrentUICulture.Name == "zh-Hans" || CultureInfo.CurrentUICulture.Name == "zh-Hant")
+{
+    <div class="d-flex align-items-center" id="menu_chatbot_support">
+        <div class="topbar-item">
+            <div class="@Model.CssClass">
+                <a href="/webchat/index.html?chatbotId=@AIaaS.Nlp.NlpChatbotHelper.HostChatbotId.ToString()" target=" _blank">
+                    <img src="/Chatbot/ProfilePicture/@AIaaS.Nlp.NlpChatbotHelper.HostChatbotId.ToString()" class="w-75 h-75">
+                </a>
+            </div>
+        </div>
+    </div>
+}
+
+<div class="d-flex align-items-center">
+    <div class="topbar-item">
+        <div class="@Model.CssClass">
+            <a class="align-items-center btn btn-icon btn-clean btn-dropdown btn-lg me-1" href="/App/ContactUs" title="@L("ContactUs")">
+                <i class="flaticon-email"></i>
+            </a>
+        </div>
+    </div>
+</div>
+
+@if (Model.Languages.Count >= 0)
+{
+    <div class="d-flex align-items-center" data-kt-menu-trigger="click" data-kt-menu-placement="bottom-start">
+        <div class="@Model.CssClass" title="@Model.CurrentLanguage.DisplayName">
+            @if (Model.CurrentLanguage.Name == "zh-Hans" || Model.CurrentLanguage.Name == "zh-Hant")
+            {
+                <span class="fs-3 text-hover-primary">
+                    @Model.CurrentLanguage.DisplayName.Substring(0, 1)
+                </span>
+            }
+            else
+            {
+                <span class="fs-3 text-hover-primary tenancy-name">
+                    @Model.CurrentLanguage.DisplayName.Substring(0, 2).ToUpper()
+                </span>
+            }
+
+        </div>
+    </div>
+    <div class="menu menu-sub menu-sub-dropdown menu-column menu-rounded menu-gray-600 menu-state-bg-light-primary fw-bold fs-7 w-200px py-4"
+         data-kt-menu="(@Model.Languages==0 ? " true":"false")">
+        @foreach (var languageInfo in Model.Languages.Where(language => language.Name != Model.CurrentLanguage.Name))
+        {
+            <div class="menu-item px-3">
+                <a href="@Url.Action("ChangeCulture", "AbpLocalization", new {
+                             area = "",
+                             cultureName = languageInfo.Name,
+                             returnUrl = Context.Request.Path + Context.Request.QueryString
+                         })" class="menu-link px-3">
+                    <span class="symbol symbol-20px me-4">
+                        @if (languageInfo.Name == "zh-Hans" || languageInfo.Name == "zh-Hant")
+                        {
+                            <span class="fs-3 fw-bolder text-hover-primary">@languageInfo.DisplayName.Substring(0, 1)</span>
+                        }
+                        else
+                        {
+                            <span class="fs-3 fw-bolder text-hover-primary">
+                                @languageInfo.DisplayName.Substring(0, 2).ToUpper()
+                            </span> @*<i class="@languageInfo.Icon"></i>*@}
+                    </span>
+                    @languageInfo.DisplayName
+                </a>
+            </div>
+        }
+    </div>
+}

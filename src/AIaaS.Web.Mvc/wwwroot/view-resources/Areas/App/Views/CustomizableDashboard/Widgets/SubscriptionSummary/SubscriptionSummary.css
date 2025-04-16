@@ -1,0 +1,7 @@
+﻿.SubscriptionSummaryContainer .card.card-custom > .card-body {
+    padding: 1rem 1.25rem !important;
+}
+
+.SubscriptionSummaryContainer .gutter-b {
+    margin-bottom: 0px !important;
+}

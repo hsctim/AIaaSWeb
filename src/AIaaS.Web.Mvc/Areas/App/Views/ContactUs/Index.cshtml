@@ -1,0 +1,57 @@
+﻿@using AIaaS.Authorization
+@using AIaaS.Web.Areas.App.Models.ContactUs
+@using AIaaS.Web.Areas.App.Startup
+@model ContactUsViewModel
+@{ ViewBag.CurrentPageName = AppPageNames.Info.ContactUs; }
+@section Scripts
+{
+    <script abp-src="/view-resources/Areas/App/Views/ContactUs/Index.js" asp-append-version="true"></script>
+}
+
+<div class="content d-flex flex-column flex-column-fluid">
+
+    <abp-page-subheader title='@L("ContactUs")' description='@L("ContactUs")'>
+    </abp-page-subheader>
+
+    <div class="@(await GetContainerClass())">
+        <div class="container card py-10">
+            <div class="row">
+                <div class="col-lg-6 col-lg-offset-3 mx-auto">
+                    <form id="contactus-form" role="form" novalidate class="form-validation" asp-action="SendEmail" method="post">
+                        @*<form class="form forget-form" asp-action="SendPasswordResetLink" method="post">*@
+                        <div class="messages"></div>
+                        <div class="controls">
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="mb-5">
+                                        <label for="form_name">@L("Name")</label>
+                                        <input id="form_name" type="text" name="name" class="form-control" required placeholder="@L("YourFullName")" value="@Model.Name">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="mb-5">
+                                        <label for="form_email">@L("EmailAddress")</label>
+                                        <input id="form_email" type="email" name="email" class="form-control" required placeholder="@L("YourEMail")" value="@Model.EMail">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="mb-5">
+                                        <label for="form_message">@L("Message")</label>
+                                        <textarea id="form_message" name="message" class="form-control" rows="5" required placeholder="@L("YourMessage")"></textarea>
+                                    </div>
+                                </div>
+                                <div class="col-md-12 text-end">
+                                    <button type="button" id="ContactUsSubmit" class="btn btn-primary btn-send"><i class="far fa-envelope"></i> <span>@L("Send")</span></button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

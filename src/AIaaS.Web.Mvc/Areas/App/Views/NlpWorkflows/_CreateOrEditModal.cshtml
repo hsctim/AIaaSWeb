@@ -1,0 +1,53 @@
+﻿@using System.Globalization
+@using AIaaS.Web.Areas.App.Models.Common.Modals
+@using AIaaS.Web.Areas.App.Models.NlpWorkflows
+@model CreateOrEditNlpWorkflowModalViewModel
+@using Abp.Extensions
+@await Html.PartialAsync("~/Areas/App/Views/Common/Modals/_ModalHeader.cshtml", new ModalHeaderViewModel(Model.IsViewMode ? L("ViewNlpWorkflow") : (Model.IsEditMode ? (L("EditNlpWorkflow")) : L("CreateNewNlpWorkflow"))))
+
+<div class="modal-body">
+    <div id="NlpWorkflowInformationsTab">
+        <form name="NlpWorkflowInformationsForm" role="form" novalidate class="form-validation">
+
+            @if (Model.IsEditMode || Model.IsViewMode)
+            {
+                <input type="hidden" name="id" value="@Model.NlpWorkflow.Id" />
+            }
+
+            <div class="mb-3">
+                <label for="nlpChatbotId">@L("NlpChatbot")</label>
+                @if (Model.IsEditMode)
+                {
+                    @Html.DropDownList("nlpChatbotId", new SelectList(Model.NlpWorkflowNlpChatbotList, "Id", "DisplayName", (Model.IsEditMode ? Model.NlpWorkflow.NlpChatbotId.ToString() : Model.NlpChatbot?.Id.ToString())), @L("SelectANlpChatbot"), new { @class = "form-control", @required = "required", @disabled = "disabled" })
+                }
+                else
+                {
+                    @Html.DropDownList("nlpChatbotId", new SelectList(Model.NlpWorkflowNlpChatbotList, "Id", "DisplayName", (Model.IsEditMode ? Model.NlpWorkflow.NlpChatbotId.ToString() : Model.NlpChatbot?.Id.ToString())), @L("SelectANlpChatbot"), new { @class = "form-control", @required = "required" })
+                }
+            </div>
+
+            <div class="mb-3">
+                <label for="NlpWorkflow_Name">@L("WorkFlowName")</label>
+                <input class="form-control" id="NlpWorkflow_Name" value="@Model.NlpWorkflow.Name" type="text" name="name" maxlength="@AIaaS.Nlp.NlpWorkflowConsts.MaxNameLength" minlength="@AIaaS.Nlp.NlpWorkflowConsts.MinNameLength" @Html.Raw(Model.IsViewMode ? "disabled" : "") />
+            </div>
+
+            <label class="checkbox checkbox-outline">
+                <label for="NlpWorkflow_Disabled" class="form-check form-check-custom form-check-sm">
+                    <input id="NlpWorkflow_Disabled" type="checkbox" name="disabled" class="form-check-input" value="true" @Html.Raw(Model.NlpWorkflow.Disabled ? "checked=\"checked\"" : "") @Html.Raw(Model.IsViewMode ? "disabled" : "") />
+                    <span class="form-check-label">
+                        @L("IsDisabled")
+                    </span>
+                </label>
+            </label>
+        </form>
+    </div>
+</div>
+
+@if (Model.IsViewMode)
+{
+    @await Html.PartialAsync("~/Areas/App/Views/Common/Modals/_ModalFooterWithClose.cshtml")
+}
+else
+{
+    @await Html.PartialAsync("~/Areas/App/Views/Common/Modals/_ModalFooterWithSaveAndCancel.cshtml")
+}

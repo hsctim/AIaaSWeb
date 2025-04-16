@@ -1,0 +1,43 @@
+﻿@using System.Globalization
+@using AIaaS.Web.Areas.App.Models.Common.Modals
+@using AIaaS.Web.Areas.App.Models.NlpChatbots
+@model DeleteNlpChatbotModalViewModel
+
+@await Html.PartialAsync("~/Areas/App/Views/Common/Modals/_ModalHeader.cshtml", new ModalHeaderViewModel(@L("DeleteNlpChatbot")))
+
+@section Styles
+{
+    <link rel="stylesheet" abp-href="/view-resources/Areas/App/Views/NlpChatbots/Index.css" asp-append-version="true" />
+}
+
+<div class="modal-body pt-0 pb-0">
+    <div id="NlpChatbotInformationsTab">
+        <form name="NlpChatbotInformationsForm" role="form" novalidate class="form-validation">
+
+            <input type="hidden" name="id" value="@Model.ChatbotId" />
+            <input type="hidden" name="chatbotName" value="@Model.ChatbotName" />
+            <input type="hidden" id="userEmailAddress" value="@Model.UserEmail" />
+
+            <div class="mb-5 mt-5">
+                <div role="alert">
+                    <h5 id="formWarningMessage"></h5>
+                </div>
+                <div class="my-5 w-75 ms-auto me-5">
+                    <input class="form-control " id="DeleteChatbotModal_EMail"
+                           type="text"
+                           name="emailAddress"
+                           maxlength="255"
+                           placeholder=@L("EmailAddress")
+                           required />
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+@*@await Html.PartialAsync("~/Areas/App/Views/Common/Modals/_ModalFooterWithDeleteAndCancel.cshtml")*@
+
+<div class="modal-footer">
+    <button type="button" class="btn btn-light-primary fw-bold close-button" data-bs-dismiss="modal">@L("Cancel")</button>
+    <button type="button" class="btn btn-danger delete-button"><i class="far fa-trash-alt"></i> <span>@L("Delete")</span></button>
+</div>

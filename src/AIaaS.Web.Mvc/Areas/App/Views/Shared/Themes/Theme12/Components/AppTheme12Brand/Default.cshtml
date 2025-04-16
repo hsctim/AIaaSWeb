@@ -1,0 +1,20 @@
+﻿@using Abp.Runtime.Session
+@using AIaaS.Web.Areas.App.Models.Layout
+@using AIaaS.Web.Areas.App.Views.Shared.Components.AppLogo
+@model HeaderViewModel
+@{
+    Layout = null;
+    var skin = @Model.LoginInformations.Theme.BaseSettings.Layout.DarkMode ? "dark" : "light";
+}
+<a href="@Url.Action("Index", "Home", new {area = string.Empty})" target="_blank" class="brand-logo">
+    @await Component.InvokeAsync(typeof(AppLogoViewComponent), new
+    {
+        logoSkin = skin,
+        logoClass = "theme-" + skin + "-show d-none d-lg-block h-30px"
+    })
+    @await Component.InvokeAsync(typeof(AppLogoViewComponent), new
+    {
+        logoSkin = skin + "-sm",
+        logoClass = "d-lg-none h-25px"
+    })
+</a>

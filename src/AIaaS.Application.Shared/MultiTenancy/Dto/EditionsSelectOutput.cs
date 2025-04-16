@@ -1,0 +1,25 @@
+﻿using System.Collections.Generic;
+using AIaaS.Editions.Dto;
+
+
+/// <summary>
+/// Edition Id = 1: Free Edition
+/// Edition Id = 2 : Business Edition
+/// Edition Id = 3 : Custom Edition
+/// </summary>
+
+namespace AIaaS.MultiTenancy.Dto
+{
+    public class EditionsSelectOutput
+    {
+        public EditionsSelectOutput()
+        {
+            AllFeatures = new List<FlatFeatureSelectDto>();
+            EditionsWithFeatures = new List<EditionWithFeaturesDto>();
+        }
+
+        public List<FlatFeatureSelectDto> AllFeatures { get; set; }
+
+        public List<EditionWithFeaturesDto> EditionsWithFeatures { get; set; }
+    }
+}

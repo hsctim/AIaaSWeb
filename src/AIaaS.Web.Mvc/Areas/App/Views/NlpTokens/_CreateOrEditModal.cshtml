@@ -1,0 +1,35 @@
+﻿@using System.Globalization
+@using AIaaS.Web.Areas.App.Models.Common.Modals
+@using AIaaS.Web.Areas.App.Models.NlpTokens
+@model CreateOrEditNlpTokenModalViewModel
+
+@await Html.PartialAsync("~/Areas/App/Views/Common/Modals/_ModalHeader.cshtml", new ModalHeaderViewModel(Model.IsEditMode ? (L("EditNlpToken")) : L("CreateNewNlpToken")))
+
+<div class="modal-body">
+	<div id="NlpTokenInformationsTab">
+		<form name="NlpTokenInformationsForm" role="form" novalidate class="form-validation">
+
+			@if (Model.IsEditMode)
+			{
+				<input type="hidden" name="id" value="@Model.NlpToken.Id" />
+			}
+
+
+
+
+			<div class="mb-3">
+				<label for="NlpToken_NlpTokenType">@L("NlpTokenType")</label>
+				<input class="form-control" id="NlpToken_NlpTokenType" value="@Model.NlpToken.NlpTokenType" type="text" name="nlpTokenType" required maxlength="@AIaaS.Nlp.NlpTokenConsts.MaxNlpTokenTypeLength" minlength="@AIaaS.Nlp.NlpTokenConsts.MinNlpTokenTypeLength" />
+			</div>
+
+			<div class="mb-3">
+				<label for="NlpToken_NlpTokenValue">@L("NlpTokenValue")</label>
+				<input class="form-control" id="NlpToken_NlpTokenValue" value="@Model.NlpToken.NlpTokenValue" type="text" name="nlpTokenValue" required maxlength="@AIaaS.Nlp.NlpTokenConsts.MaxNlpTokenValueLength" minlength="@AIaaS.Nlp.NlpTokenConsts.MinNlpTokenValueLength" />
+			</div>
+
+
+		</form>
+	</div>
+</div>
+
+@await Html.PartialAsync("~/Areas/App/Views/Common/Modals/_ModalFooterWithSaveAndCancel.cshtml")

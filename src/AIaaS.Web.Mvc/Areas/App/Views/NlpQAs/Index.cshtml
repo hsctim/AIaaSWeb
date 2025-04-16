@@ -1,0 +1,180 @@
+﻿@using AIaaS.Authorization
+@using AIaaS.Web.Areas.App.Models.NlpQAs
+@using AIaaS.Web.Areas.App.Startup
+@using AIaaS.Web.TagHelpers
+@model NlpQAsViewModel
+@{
+    ViewBag.CurrentPageName = AppPageNames.Tenant.NlpQAs;
+}
+
+@section Styles
+{
+    <link rel="stylesheet" abp-href="/view-resources/Areas/App/Views/NlpQAs/Index.css" asp-append-version="true" />
+}
+
+@section Scripts
+{
+    <script abp-src="/view-resources/Areas/App/Views/NlpQAs/Index.js" asp-append-version="true"></script>
+}
+
+@{
+    var breadcrumbs = new List<BreadcrumbItem>()
+{
+                new BreadcrumbItem(Url.Action("Index", "NlpChatbots", new {Area = "App"}), @L("NlpChatbots")),
+
+        new BreadcrumbItem(L("NlpQAs")),
+    };
+}
+
+<input type="hidden" id="NlpQACategoryUpdated" value="0" />
+<div class="content d-flex flex-column flex-column-fluid">
+    <abp-page-subheader title="@L("NlpQAs")" description="@L("NlpQAsHeaderInfo")" breadcrumbs='breadcrumbs'>
+
+        <div id="MenuButtonStartId" class="d-flex align-items-center text-end flex-wrap justify-content-end">
+            @if (Model.ChatbotSelectList.Count() > 0)
+            {
+                <div class="btn-group m-1">
+                    <button id="TrainingChatbotDropDown" type="button" class="btn btn-light-success dropdown-toggle d-none" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i id="TrainingIcon" class="fas fa-flask pe-0 me-0"></i>
+                        <span class="d-none d-lg-inline-block">@L("NlpTraining")</span>
+                    </button>
+                    <ul class="dropdown-menu" aria-labelledby="TrainingChatbotDropDown">
+                        <li id="TrainingCbStatus" class="dropdown-item-text text-muted ps-3 text-nowrap" href="#">
+                            @L("NlpTraining")
+                        </li>
+                        @if (IsGranted(AppPermissions.Pages_NlpChatbot_NlpChatbots_Train))
+                        {
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item" href="#" id="TrainingChatbotButton">
+                                    @L("NlpTraining")
+                                </a>
+                            </li>
+                        }
+                    </ul>
+                </div>
+
+                @if ( IsGranted(AppPermissions.Pages_NlpChatbot_NlpQAs_Import) || IsGranted(AppPermissions.Pages_NlpChatbot_NlpQAs_Export))
+                    {
+                        <div class="btn-group m-1">
+                            <button type="button" class="btn btn-light-success dropdown-toggle text-wrap" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                <i class="far fa-file-excel pe-0 me-0"></i> 
+                                <span class="d-none d-lg-inline-block">@L("ImportOrExport")</span>
+                            </button>
+                            <div class="dropdown-menu dropdown-menu-right">
+                                @if (IsGranted(AppPermissions.Pages_NlpChatbot_NlpQAs_Export))
+                                {
+                                    <a class="dropdown-item" id="ExportQAsToExcelButton" href="#">
+                                        <i class="fas fa-file-export me-3" aria-hidden="true"></i>@L("ExportToFile")
+                                    </a>
+                                }
+
+                                @if (IsGranted(AppPermissions.Pages_NlpChatbot_NlpQAs_Import))
+                                {
+                                    <a class="dropdown-item" id="ImportQAsFromExcelButton" href="#">
+                                        <i class="fas fa-file-import me-3" aria-hidden="true"></i>
+                                        @L("ImportFromFile")
+                                    </a>
+                                }
+                            </div>
+                        </div>
+                    }
+
+                @if (IsGranted(AppPermissions.Pages_NlpChatbot_NlpQAs_Create) || IsGranted(AppPermissions.Pages_NlpChatbot_NlpQAs_Edit))
+                {
+                    <button id="UnanswerableNlpQAButton" class="btn btn-danger text-wrap m-1 " title="@L("UnanswerableNlpQAButton_")">
+                        <i class="fa fa-times pe-0 me-0"></i>
+                        <span class="d-none d-lg-inline-block">@L("UnanswerableNlpQAButton")</span>
+                    </button>
+                }
+
+                @if (IsGranted(AppPermissions.Pages_NlpChatbot_NlpQAs_Create))
+                {
+                    <button id="CreateNewNlpQAButton" class="btn btn-primary text-wrap m-1" title="@L("CreateNewNlpQA")">
+                        <i class="fa fa-plus pe-0 me-0"></i>
+                        <span class="d-none d-lg-inline-block">@L("CreateNewNlpQA")</span>
+                    </button>
+                }
+            }
+        </div>
+    </abp-page-subheader>
+
+    <div class="@(await GetContainerClass())">
+        <div class="card card-custom gutter-b">
+            <div class="card-body mt-n5">
+                @*@if (string.IsNullOrEmpty(Model.WarningMessage) == false)
+                    {
+                        <div class="glowing text-warning mb-3">
+                            <i class="fa fa-exclamation-triangle text-warning"></i> @Model.WarningMessage
+                        </div>
+                    }*@
+
+                <div class="form">
+                    <div class="row">
+                        <div class="mb-3 col-md-6">
+                            <label for="ChatbotSelect" class="control-label">@L("NlpChatbot")</label>
+
+                            @if (Model.ChatbotSelectList.Count() > 0)
+                            {
+                                @Html.DropDownList("Text", Model.ChatbotSelectList, new { @class = "form-select", id = "ChatbotSelect" })
+
+                            }
+                            else
+                            {
+                                @Html.DropDownList("Text", Model.ChatbotSelectList, @L("Nlp_SelectChatbot"), new { @class = "form-select", id = "ChatbotSelect" })
+                            }
+
+                        </div>
+
+                        <div class="mb-3 col-md-6">
+                            <label for="CategoryFilterId">@L("NlpQACategory")</label>
+                            <input class="form-control" id="CategoryFilterId" name="categoryFilter" list="CategoryList" placeholder="@L("NlpQACategory")" />
+
+                            <datalist id="CategoryList">
+                            </datalist>
+                        </div>
+
+                        <div class="mb-3 col-md-12">
+                            <label for="NlpQAsTableFilter" class="control-label">@L("SearchWithThreeDot")</label>
+
+                            <div class="align-items-center input-group">
+                                <input type="text" id="NlpQAsTableFilter" class="form-control m-input" placeholder="@L("SearchWithThreeDot")" value="@Model.FilterText">
+                                <span class="input-group-btn">
+                                    <button id="GetNlpQAsButton" class="btn btn-primary" type="submit"><i class="flaticon-search-1"></i></button>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row align-items-center">
+                    <table id="NlpQAsTable" class="display table table-striped table-bordered table-hover dt-responsive">
+                        <thead>
+                            <tr>
+                                <th></th>
+                                <th class="text-wrap min-w-60px align-middle">@L("Actions")</th>
+                                <th class="text-wrap min-w-60px"><b>@L("Question")</b></th>
+                                <th class="text-wrap min-w-60px"><b>@L("Answer")</b></th>
+                                <th class="text-wrap min-w-60px">@L("QuestionCategory")</th>
+                                <th class="text-wrap min-w-60px">@L("NlpWorkflow")</th>
+                                <th class="text-center min-w-60px">
+                                    <div class="btn-group">
+                                        <button class="btn btn-primary btn-sm dropdown-toggle btn-brand" data-bs-toggle="dropdown" aria-expanded="false">
+                                            <span class="caret"></span>
+                                        </button>
+                                        <ul class="dropdown-menu">
+                                            <li><a class="dropdown-item QaTableSelectAll" href="#"><i class="flaticon2-check-mark me-2"></i>@L("SelectAll")</a></li>
+                                            <li><a class="dropdown-item QaTableUnselectAll" href="#"><i class="flaticon2-cancel me-2"></i>@L("UnselectAll")</a></li>
+                                            <li><a class="dropdown-item QaTableDelete" href="#"><i class="far fa-trash-alt me-2"></i>@L("DeleteSelection")</a></li>
+                                        </ul>
+                                    </div>
+                                </th>
+                            </tr>
+                        </thead>
+                    </table>
+                    <div class="text-primary" id='NlpQaCount'>@L("QaUsageCount0", Model.QaCount)</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,274 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, minimal-ui">
+    <title>ChatPal.Ai Document</title>
+    <meta content="ChatPal.Ai" name="description" />
+    <meta content="ChatPal.Ai" name="author" />
+    <meta name="color-scheme" content="light dark">
+    <link rel="stylesheet" href="/view-resources/Areas/App/Views/Document/github-markdown.min.css">
+</head>
+<body>
+    <div class="markdown-body p-10">
+        <!--Content Start-->
+        <h1 id="webapi">WebAPI</h1>
+<p>您可以透過WebAPI向ChatPal.Ai傳送問題，並接受答案，以下是ChatPal.Ai所提供的WebAPI,</p>
+<table>
+<thead>
+<tr>
+<th>功能</th>
+<th>方法</th>
+<th>URL</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong><a href="#sendmessage">SendMessage</a></strong></td>
+<td>POST</td>
+<td>/Chatbot/SendMessage</td>
+<td>傳送一個問題至ChatPal.Ai，並接收ChatPal.Ai回傳的答案。</td>
+</tr>
+<tr>
+<td><strong><a href="#getmessage">GetMessage</a></strong></td>
+<td>POST</td>
+<td>/Chatbot/GetMessage</td>
+<td>接收由ChatPal.Ai傳送的訊息，如果由客服代替機器人回應問題，透過GetMessage可接收客服主動傳送來的訊息。</td>
+</tr>
+<tr>
+<td><strong><a href="#setworkflowstate">SetWorkFlowState</a></strong></td>
+<td>POST</td>
+<td>/Chatbot/SetWorkFlowState</td>
+<td>設定目前的工作流程狀態。</td>
+</tr>
+<tr>
+<td><strong><a href="#getworkflowstate">GetWorkFlowState</a></strong></td>
+<td>POST</td>
+<td>/Chatbot/GetWorkFlowState</td>
+<td>取得目前的工作流程狀態。</td>
+</tr>
+<tr>
+<td><strong><a href="#profilepicture">ProfilePicture</a></strong></td>
+<td>GET</td>
+<td>/Chatbot/ProfilePicture/[id]</td>
+<td>機器人的頭像圖檔</td>
+</tr>
+<tr>
+<td><strong><a href="#sessioninfo">SessionInfo</a></strong></td>
+<td>GET</td>
+<td>/Chatbot/SessionInfo/[id]</td>
+<td>取得Session會話相關資訊</td>
+</tr>
+</tbody>
+</table>
+<h2 id="sendmessage">SendMessage</h2>
+<ul>
+<li><p><strong>方法:</strong>
+POST</p>
+</li>
+<li><p><strong>URL:</strong>
+/Chatbot/SendMessage</p>
+</li>
+<li><p><strong>說明:</strong>
+傳送一個問題至ChatPal.Ai，並接收ChatPal.Ai回傳的答案。</p>
+</li>
+<li><p><strong>傳入值說明:</strong></p>
+<table>
+<thead>
+<tr>
+<th>參數</th>
+<th>類別</th>
+<th>必選</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>chatbotId</td>
+<td>guid</td>
+<td>√</td>
+<td>問答機器人的GUID，表示訊息(問題)由哪一個問答機器人接收。</td>
+</tr>
+<tr>
+<td>clientId</td>
+<td>guid</td>
+<td>√</td>
+<td>Client端的GUID，表示訊息(問題)由哪一個ClientId傳送。<br/><br/>如果您有多個終端設備要連結至同一個問答機器人，請設定為不同的GUID，以便辨別不同的終端設備。</td>
+</tr>
+<tr>
+<td>clientChannel</td>
+<td>string</td>
+<td>√</td>
+<td>Client端的通道名稱。<br/><br/>可以設定通道名稱為Web, Device, Line或Facebook。在ChatPal.Ai的<strong>值機操作</strong>及<strong>訊息記錄</strong>中會顯示Client端的通道名稱，可以協助您在值機或分析時判斷訊息的來源通道。</td>
+</tr>
+<tr>
+<td>message</td>
+<td>string</td>
+<td>√</td>
+<td>由Client端傳送至問答機器人的問題(訊息)。</td>
+</tr>
+</tbody>
+</table>
+<p><strong>傳入的JSON範例:</strong></p>
+<blockquote>
+<p>{ &quot;message&quot; : &quot;現在天氣&quot; , &quot;ClientChannel&quot; : &quot;POS&quot; , &quot;clientId&quot; : &quot;4ab13edf-2c5e-4fcf-b62a-b8f5629895ed&quot; , &quot;chatbotId&quot; : &quot;bb3bcb55-0b24-4679-87fe-373c01c1e521&quot; }</p>
+</blockquote>
+</li>
+</ul>
+<br/>
+<ul>
+<li><p><strong>傳回值說明:</strong></p>
+<table>
+<thead>
+<tr>
+<th>參數</th>
+<th>類別</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>errorMessage</td>
+<td>string</td>
+<td>如果發生非預期的錯誤時，會列出錯誤資訊。</td>
+</tr>
+<tr>
+<td>messages[]</td>
+<td><a href="#messages">Messages類別</a></td>
+<td>問答機器人會回覆一個訊息(答案)、0個訊息或多個訊息至Client端。<br/><br/>如果問答機器人無法預測正確的答案且設定預測失敗的回覆內容為空白時，就不會回傳任何答案(0個訊息)。<br/><br/>問答機器人也可能會回傳多個訊息(包含AI運算出的預測答案及客服所傳送的訊息)，原因是訊仍存在Message Queue尚未被Client端取出，可以使用<strong>GetMessages</strong>取得在Queue中的訊息並清空Message Queue。<br/><br/>Messages的類別結構請參考下表<a href="#messages">Messages類別</a></td>
+</tr>
+</tbody>
+</table>
+<h3 id="messages">Messages類別</h3>
+<table>
+<thead>
+<tr>
+<th>參數</th>
+<th>類別</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>chatbotId</td>
+<td>guid</td>
+<td>問答機器人的GUID，表示訊息(答案)由哪一個問答機器人傳送。</td>
+</tr>
+<tr>
+<td>clientId</td>
+<td>guid</td>
+<td>Client端的GUID，表示訊息(答案)由哪一個ClientId接收。</td>
+</tr>
+<tr>
+<td>clientChannel</td>
+<td>string</td>
+<td>Client端的通道名稱。在ChatPal.Ai的<strong>值機操作</strong>及<strong>訊息記錄</strong>中會顯示Client端的通道名稱，可以協助您在值機或分析時判斷訊息的來源通道。</td>
+</tr>
+<tr>
+<td>connectionProtocol</td>
+<td>string</td>
+<td>訊息傳送所使用的通訊協定，包含了<code>http</code>，<code>signalr</code>，<code>websocket</code>或其它協定。</td>
+</tr>
+<tr>
+<td>message</td>
+<td>string</td>
+<td>由問答機器人傳送至Client端的答案(訊息)。</td>
+</tr>
+<tr>
+<td>messageType</td>
+<td>string</td>
+<td><code>text</code>表示回傳的是文字訊息。<br/><code>text.error</code>表示回傳的是預測錯誤的文字訊息。<br/><code>text.workflow</code>表示回傳的是文字訊息，且是位於工作流程時回傳的訊息。<br/><code>text.workflow.text</code>表示回傳的是預測錯誤的文字訊息，且是位於工作流程時回傳的錯誤訊息。</td>
+</tr>
+<tr>
+<td>senderRole</td>
+<td>string</td>
+<td>預設值為<code>chatbot</code></td>
+</tr>
+<tr>
+<td>senderName</td>
+<td>string</td>
+<td>問答機器人的名字</td>
+</tr>
+<tr>
+<td>senderImage</td>
+<td>string</td>
+<td>問答機器人的頭像圖檔url</td>
+</tr>
+<tr>
+<td>senderTime</td>
+<td>string</td>
+<td>問答機器人傳送訊息(答案)的時間(UTC)，</td>
+</tr>
+<tr>
+<td>receiverName</td>
+<td>string</td>
+<td>client端使用者的名字</td>
+</tr>
+<tr>
+<td>receiverImage</td>
+<td>string</td>
+<td>client端使用者的頭像圖檔url，預設值為<code>/Common/Images/default-profile-picture.png</code></td>
+</tr>
+<tr>
+<td>receiverName</td>
+<td>string</td>
+<td>client端使用者的名字</td>
+</tr>
+<tr>
+<td>receiverRole</td>
+<td>string</td>
+<td>預設值為<code>client</code></td>
+</tr>
+<tr>
+<td>messageDetails[]</td>
+<td><a href="#chatbotmessagedetails">ChatbotMessageDetails類別</a></td>
+<td>回傳多個預測的答案內容，並依照準確度排序。<br/><br/>ChatbotMessageDetails的類別結構請參考下表<a href="#chatbotmessagedetails">ChatbotMessageDetails類別</a></td>
+</tr>
+<tr>
+<td>workflow</td>
+<td>string</td>
+<td>目前的工作流程。</td>
+</tr>
+<tr>
+<td>workflowState</td>
+<td>string</td>
+<td>目前的工作流程的狀態。</td>
+</tr>
+<tr>
+<td>failedCount</td>
+<td>int</td>
+<td>問答機器人預測錯誤(低於特定的準確度)的連續次數。</td>
+</tr>
+</tbody>
+</table>
+<p>{&quot;messages&quot;:[{&quot;id&quot;:&quot;e536600d-6334-4baa-306a-08da0599e9ed&quot;,&quot;chatbotId&quot;:&quot;2ff3d928-25ab-4b02-1d24-08d9e62952ee&quot;,&quot;clientId&quot;:&quot;ad2f1df3-6cec-45f7-ba27-0dd9c08105f7&quot;,&quot;message&quot;:&quot;*請輸入您的門號&quot;,&quot;messageType&quot;:&quot;text.workflow&quot;,&quot;senderRole&quot;:&quot;chatbot&quot;,&quot;senderName&quot;:&quot;愛瑪&quot;,&quot;senderImage&quot;:&quot;/Chatbot/ProfilePicture/61023cb4-fb49-b536-d42c-3a01cbd218bb&quot;,&quot;senderTime&quot;:&quot;2022-03-14T09:06:25.2135402Z&quot;,&quot;receiverName&quot;:&quot;&quot;,&quot;receiverImage&quot;:&quot;/Common/Images/default-profile-picture.png&quot;,&quot;receiverRole&quot;:&quot;client&quot;,&quot;clientChannel&quot;:&quot;PostMan&quot;,&quot;messageDetails&quot;:[{&quot;acc&quot;:0.9755151867866516,&quot;messages&quot;:[&quot;*請輸入您的門號&quot;]}],&quot;connectionProtocol&quot;:&quot;http&quot;,&quot;workflow&quot;:&quot;自助服務牆.查繳帳單&quot;,&quot;workflowState&quot;:&quot;查繳帳單.輸入門號&quot;,&quot;failedCount&quot;:0}]}</p>
+<h3 id="chatbotmessagedetails">ChatbotMessageDetails類別</h3>
+<table>
+<thead>
+<tr>
+<th>參數</th>
+<th>類別</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>acc</td>
+<td>float32</td>
+<td>預測答案的準確度，最大值為1，最小值為0</td>
+</tr>
+<tr>
+<td>messages</td>
+<td>string[]</td>
+<td>問答機器人回應的答案。</td>
+</tr>
+</tbody>
+</table>
+</li>
+</ul>
+
+        <!--Content End-->
+    </div>
+</body>
+</html>

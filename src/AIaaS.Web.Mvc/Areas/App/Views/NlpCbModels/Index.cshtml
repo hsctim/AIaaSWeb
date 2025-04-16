@@ -1,0 +1,108 @@
+﻿@using AIaaS.Authorization
+@using AIaaS.Web.Areas.App.Models.NlpCbModels
+@using AIaaS.Web.Areas.App.Startup
+@using AIaaS.Web.TagHelpers
+@model NlpCbModelsViewModel
+@{
+    ViewBag.CurrentPageName = AppPageNames.Tenant.NlpCbModels;
+}
+@section Scripts
+{
+    <script abp-src="/view-resources/Areas/App/Views/NlpCbModels/Index.js" asp-append-version="true"></script>
+}
+
+@{
+    var breadcrumbs = new List<BreadcrumbItem>()
+{
+        new BreadcrumbItem(Url.Action("Index", "NlpChatbots", new {Area = "App"}), @L("NlpChatbots")),
+        new BreadcrumbItem(L("NlpCbModelsHis")),
+    };
+}
+
+<div class="content d-flex flex-column flex-column-fluid">
+
+    <input type="hidden" name="chatbotIdFilter" id="ChatbotIdId" value="@Model.ChatbotId" />
+
+    <abp-page-subheader title="@L("NlpCbModelsHis")" description="@L("NlpCbModelsHeaderInfo")" breadcrumbs='breadcrumbs'>
+
+        @if (String.IsNullOrEmpty(Model.ChatbotId) == false || Model.ChatbotSelectList.Count() > 0)
+        {
+            <div class="btn-group">
+                <button id="TrainingChatbotDropDown" type="button" class="btn btn-light-success dropdown-toggle me-3 d-none" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i id="TrainingIcon" class="fas fa-flask pe-0 me-0"></i>
+                    <span class="d-none d-md-inline-block">@L("NlpTraining")
+                        </span>
+                </button>
+                <ul class="dropdown-menu" aria-labelledby="TrainingChatbotDropDown">
+                    <li id="TrainingCbStatus" class="dropdown-item-text text-muted ps-3 text-nowrap" href="#">
+                        @L("NlpTraining")
+                    </li>
+                    @if (IsGranted(AppPermissions.Pages_NlpChatbot_NlpChatbots_Train))
+                    {
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item" href="#" id="TrainingChatbotButton">
+                                @L("NlpTraining")
+                            </a>
+                        </li>
+                    }
+                </ul>
+            </div>
+        }
+    </abp-page-subheader>
+
+    <div class="@(await GetContainerClass())">
+        <div class="card card-custom gutter-b">
+            <div class="card-body">
+                <div class="form">
+                    <div class="form-row align-items-center">
+                        <div class="mb-3 col-md-6">
+                            <label for="ChatbotSelect" class="control-label">@L("NlpChatbot")</label>
+                            @if (String.IsNullOrEmpty(Model.ChatbotId) == true)
+                            {
+                                if (Model.ChatbotSelectList.Count() > 0)
+                                {
+                                    @Html.DropDownList("Text", Model.ChatbotSelectList,
+                            new { @class = "form-select", id = "ChatbotSelect" })
+                                    ;
+                                }
+                                else
+                                {
+                                    @Html.DropDownList("Text", Model.ChatbotSelectList, L("PickNlpChatbot"),
+                            new { @class = "form-control selectpicker", id = "ChatbotSelect" })
+                                    ;
+                                }
+                            }
+                            else
+                            {
+                                @*<p class="form-control" id="ChatbotSelect">@Model.ChatbotName</p>*@
+                                <input type="text" id="ChatbotSelect" class="form-control" value="@Model.ChatbotName" readonly>
+                            }
+                        </div>
+
+
+                    </div>
+
+                    <div class="row align-items-center">
+                        <table id="NlpCbModelsTable" class="display table table-striped table-bordered table-hover dt-responsive">
+                            <thead>
+                                <tr>
+                                    <th></th>
+                                    <th></th>
+                                    <th class="text-wrap min-w-60px">@L("NlpCbMStatus")</th>
+                                    <th class="text-wrap min-w-60px">@L("NlpCbMCreationUser")</th>
+                                    <th class="text-wrap min-w-60px">@L("NlpCbMCreationTime")</th>
+                                    <th class="text-wrap min-w-60px">@L("NlpCbMTrainingStartTime")</th>
+                                    <th class="text-wrap min-w-60px">@L("NlpCbMTrainingCompleteTime")</th>
+                                    <th class="text-wrap min-w-60px">@L("NlpCbAccuracy")</th>
+                                    <th class="text-wrap min-w-60px">@L("NlpCbMTrainingCancellationUser")</th>
+                                    <th class="text-wrap min-w-60px">@L("NlpCbMTrainingCancellationTime")</th>
+                                </tr>
+                            </thead>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

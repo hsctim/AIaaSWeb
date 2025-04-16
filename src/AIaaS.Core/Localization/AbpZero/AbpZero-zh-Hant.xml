@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<localizationDictionary culture="zh-Hant">
+  <texts>
+<text name="InvalidTenancyName" value="租戶名無效!" />
+    <text name="TenancyNameIsAlreadyTaken" value="租戶名{0} 已被佔用." />
+    <text name="RoleNameIsAlreadyTaken" value="角色名{0}已被佔用." />
+    <text name="RoleDisplayNameIsAlreadyTaken" value="角色顯示名稱 {0}已被佔用." />
+    <text name="CanNotDeleteStaticRole" value="不能刪除系統預定義角色: {0}" />
+    <text name="CanNotRenameAdminUser" value="不能重命名默認管理員的用戶名 {0}" />
+    <text name="CanNotDeleteAdminUser" value="不能刪除默認管理員{0}!" />
+    <text name="OrganizationUnitDuplicateDisplayNameWarning" value="已存在名為 {0} 的組織單位. 無法在同一級別創建相同名稱的組織單位." />
+    <text name="InvalidFeatureValue" value="{0}功能的值無效!" />
+  </texts>
+</localizationDictionary>

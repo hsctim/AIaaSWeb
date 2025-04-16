@@ -1,0 +1,24 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<localizationDictionary culture="zh-Hant">
+  <texts>
+	<text name="SmtpHost">SMTP主機</text>
+    <text name="SmtpPort">SMTP端口</text>
+    <text name="Username">用戶名</text>
+    <text name="Password">密碼</text>
+    <text name="DomainName">域名</text>
+    <text name="UseSSL">使用SSL</text>
+    <text name="UseDefaultCredentials">使用默認驗證</text>
+    <text name="DefaultFromSenderEmailAddress">默認發件人郵箱地址</text>
+    <text name="DefaultFromSenderDisplayName">默認發件人名字</text>
+    <text name="DefaultLanguage">預設語言</text>
+    <text name="ReceiveNotifications">接收通知</text>
+    <text name="CurrentUserDidNotLoginToTheApplication">當前用戶沒有登錄到系統！ </text>
+    <text name="TimeZone">時區</text>
+    <text name="AllOfThesePermissionsMustBeGranted">您沒有權限進行此操作,您需要以下權限：{0}</text>
+    <text name="AtLeastOneOfThesePermissionsMustBeGranted">您沒有權限進行此操作,您至少需要下列權限的其中一項：{0}</text>
+    <text name="FeatureIsNotEnabled">功能未啟用：{0}</text>
+    <text name="AllOfTheseFeaturesMustBeEnabled">未啟用所需功能. 必須啟用所有這些功能：{0}</text>
+    <text name="AtLeastOneOfTheseFeaturesMustBeEnabled">未啟用所需功能. 必須至少啟用其中一個功能：{0}</text>
+    <text name="MainMenu">主菜單</text>
+  </texts>
+</localizationDictionary>

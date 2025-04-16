@@ -1,0 +1,199 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, minimal-ui">
+    <title>ChatPal.Ai Document</title>
+    <meta content="ChatPal.Ai" name="description" />
+    <meta content="ChatPal.Ai" name="author" />
+    <meta name="color-scheme" content="light dark">
+    <link rel="stylesheet" href="/view-resources/Areas/App/Views/Document/github-markdown.min.css">
+</head>
+<body>
+    <div class="markdown-body p-10">
+        <!--Content Start-->
+        <h1 id="pos">加入至您的自助服務設備(POS)</h1>
+<p>ChatPal.Ai 內建工作流程功能，協助您輕易地將 ChatPal.Ai 加入至您現有的自助服務設備內，讓您的自助服務設備(POS)可以完全透過語音問答方式達成各智能項的服務。</p>
+<p>若 ChatPal.Ai 應用在電信繳費自助服務裝置，以下是它的繳費流程，</p>
+<blockquote>
+<ol>
+<li>詢問服務項目，例如<strong>繳費</strong>或其它服務項目。</li>
+<li>若是<strong>繳費</strong>，詢問<strong>電信門號</strong>。</li>
+<li>請求<strong>確認</strong>繳費金額。</li>
+<li>請求<strong>選擇付款工具</strong>，例如信用卡或其它支付工具。</li>
+<li>請求將支付工具靠近支付感應處後<strong>進行繳費</strong>。</li>
+<li><strong>回應繳費結果</strong>。</li>
+</ol>
+</blockquote>
+<p>您可以按照以下步驟將ChatPal.Ai應用在您的自助服務設備，</p>
+<ol>
+<li><p>在ChatPal.Ai內建立一個問答機器人，並在問答機器人的設定內開啟<strong>WebAPI</strong>功能。</p>
+</li>
+<li><p>建立問答機器人的<strong>工作流程</strong>，
+您可以建立一個<strong>工作流程</strong>，名稱可設定為<strong>繳費流程</strong>。</p>
+</li>
+<li><p>建立<strong>繳費流程</strong>內的<strong>工作流程狀態</strong>，你可以依序建立以下的<strong>工作流程狀態</strong>，</p>
+</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>狀態名稱</th>
+<th>預測失敗處理</th>
+<th>連續三次預測失敗處理</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>輸入門號</code></td>
+<td>維持目前工作流狀態</td>
+<td>離開工作流</td>
+</tr>
+<tr>
+<td><code>確認繳款金額</code></td>
+<td>維持目前工作流狀態</td>
+<td>離開工作流</td>
+</tr>
+<tr>
+<td><code>選擇支付工具</code></td>
+<td>維持目前工作流狀態</td>
+<td>離開工作流</td>
+</tr>
+<tr>
+<td><code>再次確認繳款金額</code></td>
+<td>維持目前工作流狀態</td>
+<td>離開工作流</td>
+</tr>
+<tr>
+<td><code>放置支付感應處</code></td>
+<td>維持目前工作流狀態</td>
+<td>離開工作流</td>
+</tr>
+<tr>
+<td><code>繳款成功</code></td>
+<td>維持目前工作流狀態</td>
+<td>離開工作流</td>
+</tr>
+<tr>
+<td><code>繳款失敗</code></td>
+<td>維持目前工作流狀態</td>
+<td>離開工作流</td>
+</tr>
+</tbody>
+</table>
+<ol start="4">
+<li>加入您的問答內容，例如，加入問題為<strong>查繳帳單</strong>，並設定為進入繳費流程。	以下是簡易的設定範例，</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>問題</th>
+<th>答案</th>
+<th>目前工作流狀態</th>
+<th>下一個工作流狀態</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>查繳帳單<br/>繳費<br/>繳電信費</td>
+<td></td>
+<td>未定義</td>
+<td>輸入門號</td>
+<td>進入繳費流程</td>
+</tr>
+<tr>
+<td><code>[輸入門號]</code></td>
+<td></td>
+<td>輸入門號</td>
+<td>確認繳款金額</td>
+<td><code>*1</code></td>
+</tr>
+<tr>
+<td>確認<br/>下一步</td>
+<td></td>
+<td>確認繳款金額</td>
+<td>選擇支付工具</td>
+<td></td>
+</tr>
+<tr>
+<td>信用卡</td>
+<td></td>
+<td>選擇支付工具</td>
+<td>再次確認繳款金額</td>
+<td></td>
+</tr>
+<tr>
+<td>確認<br/>下一步</td>
+<td></td>
+<td>再次確認繳款金額</td>
+<td>放置支付感應處</td>
+<td></td>
+</tr>
+<tr>
+<td><code>[繳款成功]</code></td>
+<td></td>
+<td>放置支付感應處</td>
+<td>繳款成功</td>
+<td><code>*2</code></td>
+</tr>
+<tr>
+<td><code>[繳款失敗]</code></td>
+<td></td>
+<td>放置支付感應處</td>
+<td>繳款失敗</td>
+<td><code>*3</code></td>
+</tr>
+<tr>
+<td>回主選單</td>
+<td></td>
+<td>繳款失敗</td>
+<td>未定義</td>
+<td>退出繳費流程</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>*1. 程式確認門號輸入後，可使用<code>SetWorkFlowState</code> WebAPI或特定問題(<code>[輸入門號]</code>)通知ChatPal.Ai進入下一個狀態。
+<br />
+*. 程式確認已支付成功後，可使用<code>SetWorkFlowState</code> WebAPI或特定問題(<code>[繳款成功]</code>)通知ChatPal.Ai進入下一個狀態。
+<br />
+*3. 程式確認已支付失敗後，可使用<code>SetWorkFlowState</code> WebAPI或特定問題(<code>[繳款失敗]</code>)通知ChatPal.Ai進入下一個狀態。</p>
+</blockquote>
+<ol start="5">
+<li><p>使用<strong>語音轉換成文字(Speech-to-Text)</strong> 將語音內容以文字方式傳送至ChatPal.Ai，ChatPal.Ai會回預測的答案及目前的工作流程狀態。</p>
+<p>您的自助服務設備可使用Http Post方式呼叫ChatPal.Ai所提供的WebAPI進行通訊，這是最可靠且最容易的傳輸方式。</p>
+<p>以下是ChatPal.Ai提供的WebAPI,</p>
+</li>
+</ol>
+<blockquote>
+<ul>
+<li><p><strong>SendMessage</strong>
+<br />
+傳送一個問題至ChatPal.Ai，並接收ChatPal.Ai回傳的答案。</p>
+</li>
+<li><p><strong>GetMessage</strong>
+<br />
+接收由ChatPal.Ai傳送的訊息，如果由客服代替機器人回應問題或傳送訊息，您的設備可透過<code>GetMessage</code>接收客服所傳送來的訊息。
+<br />
+<code>GetMessage</code>使用<strong>Long Polling</strong>方式接收由ChatPal.Ai所傳送的訊息，若60秒內無任何訊息，會回傳空值(<code>[]</code>)。</p>
+</li>
+<li><p><strong>SetWorkFlowState</strong>
+<br />
+如果您的自助服務設備提供額外的輸入裝置，例如，在觸控螢幕上點擊繳費按鈕，並將工作流程狀態變更為 <strong>輸入門號</strong> ，您的設備必須使用<strong>SetWorkFlowState</strong>通知ChatPal.Ai將目前的工作流程狀態已變更為<strong>輸入門號</strong>。
+- <strong>GetWorkflowState</strong>
+<br />
+您的自助服務設備可使用<code>GetWorkflowState</code>向ChatPal.Ai查詢目前的工作流狀態。</p>
+</li>
+</ul>
+</blockquote>
+<ol start="6">
+<li>您可以將ChatPal.Ai回應的答案透過<strong>文字轉語音</strong>方式撥放合成語音，如果您有相對應真人語音檔，可播放真人語音檔。</li>
+</ol>
+<p>為了讓你的自助服務設備可以提供客戶最好的自助服務體驗，您可以規劃更完整的工作流程，例如，可以在繳費流程的任何狀態下接受任意地變更支付工具或門號，不而不是能回到特定像使用觸控螢幕一樣只能回特定狀態才能接受上一步驟才能變更支付工具或門號。您的自助服務設備應要具備類似口語般的服務模式，而非選項式的服務模式，這可以提供客戶較好的使用體驗，但您的工作流程設定可能會較，但這能回變更支付工具或門號複雜。</p>
+<h2 id="section">建議的內容</h2>
+
+        <!--Content End-->
+    </div>
+</body>
+</html>

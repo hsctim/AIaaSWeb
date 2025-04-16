@@ -1,0 +1,32 @@
+﻿@using AIaaS.Web.Views.Shared.Components.AccountLanguages
+@model LanguageSelectionViewModel
+
+
+<div class="ms-auto me-1">
+	@if (AbpSession.UserId.HasValue)
+	{
+		<a class="btn btn-icon btn-clean btn-active-light-primary me-1" href="/App/ContactUs" title="@L("ContactUs")">
+			<i class="flaticon-email"></i>
+		</a>
+	}
+	else
+	{
+		<a class="btn btn-icon btn-clean btn-active-light-primary me-1" href="/ContactUs" title="@L("ContactUs")">
+			<i class="flaticon-email"></i>
+		</a>
+	}
+</div>
+@*@if (Model.LanguageSelectList.Count() > 1)
+{*@
+
+	@Html.DropDownList("language", Model.LanguageSelectList, new
+                {
+                    @class = "form-control float-right",
+                    id = "LanguageSelect",
+                    @required = "required",
+                    style = "width:auto;",
+                    @onchange = "location='/AbpLocalization/ChangeCulture?cultureName='+" + "this.value" + "+'&returnUrl=" + System.Web.HttpUtility.UrlEncode(Context.Request.Path + Context.Request.QueryString) + "'"
+                })
+
+@*}
+*@

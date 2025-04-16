@@ -1,0 +1,75 @@
+﻿@using AIaaS.Authorization
+@using AIaaS.Web.Areas.App.Models.NlpWorkflowStates
+@using AIaaS.Web.Areas.App.Startup
+@using AIaaS.Web.TagHelpers
+
+@model NlpWorkflowStatesViewModel
+@{
+    ViewBag.CurrentPageName = AppPageNames.Tenant.NlpWorkflowStates;
+}
+@section Scripts
+{
+    <script abp-src="/view-resources/Areas/App/Views/NlpWorkflowStates/Index.js" asp-append-version="true"></script>
+}
+
+@{
+    var breadcrumbs = new List<BreadcrumbItem>()
+{
+                new BreadcrumbItem(Url.Action("Index", "NlpChatbots", new {Area = "App"}), @L("NlpChatbots")),
+        new BreadcrumbItem(Url.Action("Index", "NlpWorkflows", new {Area = "App"}), @L("NlpWorkflows")),
+        new BreadcrumbItem(L("NlpWorkflowStates")),
+    };
+}
+
+<div class="content d-flex flex-column flex-column-fluid">
+
+    <abp-page-subheader title='@L("NlpWorkflowStates")' description='@L("NlpWorkflowStatesHeaderInfo")' breadcrumbs='breadcrumbs'>
+
+        @*	<abp-page-subheader title='@L("NlpWorkflowStates")' description='@L("NlpWorkflowStatesHeaderInfo")' breadcrumbs="breadcrumbs">
+        *@
+        @if (IsGranted(AppPermissions.Pages_NlpChatbot_NlpWorkflows_Create))
+        {
+            <button id="CreateNewNlpWorkflowStateButton" class="btn btn-primary blue text-wrap">
+                <i class="fa fa-plus pe-0 me-0"></i>
+                <span class="d-none d-md-inline-block">@L("CreateNewNlpWorkflowState")
+                </span>
+                </button>
+        }
+    </abp-page-subheader>
+
+    <div class="@(await GetContainerClass())">
+        <div class="card card-custom gutter-b">
+            <div class="card-body">
+                <div class="form">
+                    <input type="hidden" name="WorkflowId" id="WorkflowId" value="@Model.NlpWorkflowChatbot.Id" />
+                    <div class="row align-items-center">
+                        <div class="mb-3 col-md-6">
+                            <label for="ChatbotName" class="control-label">@L("NlpChatbot")</label>
+                            <input class="form-control" id="ChatbotName" value="@Model.NlpWorkflowChatbot.ChatbotName" type="text" name="ChatbotName" required disabled />
+                        </div>
+                        <div class="mb-3 col-md-6">
+                            <label for="WorkflowName" class="control-label">@L("NlpWorkflow")</label>
+                            <input class="form-control" id="WorkflowName" value="@Model.NlpWorkflowChatbot.Name" type="text" name="WorkflowName" required disabled />
+                        </div>
+                    </div>
+
+                    <div class="row align-items-center">
+                        <table id="NlpWorkflowStatesTable" class="display table table-striped table-bordered table-hover dt-responsive nowrap">
+                            <thead>
+                                <tr>
+                                    <th></th>
+                                    <th class="text-wrap min-w-60px align-middle">@L("Actions")</th>
+                                    <th class="text-wrap min-w-60px">@L("NlpChatbotName")</th>
+                                    <th class="text-wrap min-w-60px">@L("NlpWorkflowName")</th>
+                                    <th class="text-wrap min-w-60px"><b>@L("StateName")</b></th>
+                                    <th class="text-wrap min-w-60px">@L("StateInstruction")</th>
+                                    <th class="text-wrap min-w-60px">@L("ResponseNonWorkflowAnswer")</th>
+                                    <th class="text-wrap min-w-60px">@L("DontResponseNonWorkflowErrorAnswer")</th>
+                                </tr>
+                            </thead>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>

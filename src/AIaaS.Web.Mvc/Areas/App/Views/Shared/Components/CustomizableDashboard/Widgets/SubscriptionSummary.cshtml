@@ -1,0 +1,73 @@
+﻿<script abp-src="/view-resources/Areas/App/Views/_Bundles/widget-charts.js" asp-append-version="true"></script>
+
+<div class="SubscriptionSummaryContainer h-100">
+    <div class="row row-no-padding row-col-separator-xl">
+        <div class="col">
+            <div class="card card-custom bgi-no-repeat card-stretch gutter-b new-subscription-statistics h-100">
+                <div class="fw-bolder text-dark">
+                    <a href="#" id="SubscriptionSummary" class="card-title text-start fs-6 mb-5 text-hover-state-dark d-block text-dark">
+                        @L("SubscriptionSummary")
+                    </a>
+
+                    <div class="d-flex flex-wrap card-title text-start fs-6 mb-2">
+                        <div class="text-muted">
+                            @L("TenancyName")
+                        </div>
+                        <div class="ms-auto text-primary" id="tenantName">...</div>
+                    </div>
+                    <div class="d-flex flex-wrap card-title text-start fs-6 mb-2">
+                        <div class="text-muted">
+                            @L("SubscriptionEdition")
+                        </div>
+                        <div class="ms-auto text-primary" id="subscriptionEdition">...</div>
+                    </div>
+                    <div class="d-flex flex-wrap card-title text-start fs-6">
+                        <div class="text-muted">
+                            @L("SubscriptionEndDate")
+                        </div>
+                        <div class="ms-auto text-primary" id="subscriptionEndDate">...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col">
+            <div class="card card-custom bgi-no-repeat card-stretch gutter-b new-subscription-statistics h-100">
+                <div class="fw-bolder text-dark">
+                    <div id="EditionSummary" class="card-title text-start fs-6 text-hover-state-dark d-block text-dark">
+                        @L("SubscriptionStats")
+                    </div>
+
+                    <div class="d-flex flex-wrap card-title text-start fs-6 mb-2">
+                        <div class="text-muted">
+                            @L("UserCountLabel")
+                        </div>
+                        <div class="ms-auto text-primary" id="users">...</div>
+                    </div>
+                    <div class="d-flex flex-wrap card-title text-start fs-6 mb-2">
+                        <div class="text-muted">
+                            @L("ChatbotCountLabel")
+                        </div>
+                        <div class="ms-auto text-primary" id="nlpChatbots">...</div>
+                    </div>
+                    <div class="d-flex flex-wrap card-title text-start fs-6">
+                        <div class="text-muted">
+                            @L("QuestionCountLabel")
+                        </div>
+                        <div class="ms-auto text-primary" id="nlpQAs">...</div>
+                    </div>
+                    <div class="d-flex flex-wrap card-title text-start fs-6">
+                        <div class="text-muted">
+                            @L("QaProcessorCountLabel")
+                        </div>
+                        <div class="ms-auto text-primary" id="nlpPUs">...</div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+
+
+    </div>
+</div>

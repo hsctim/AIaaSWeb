@@ -1,0 +1,133 @@
+﻿@using AIaaS.Editions
+@using AIaaS.MultiTenancy.Payments
+@using AIaaS.Web.Areas.App.Models.Editions
+@using AIaaS.Web.Areas.App.Startup
+@model SubscriptionDashboardViewModel
+@{
+    ViewBag.CurrentPageName = AppPageNames.Tenant.SubscriptionManagement;
+    var tenant = Model.LoginInformations.Tenant;
+    var tenantEdition = Model.LoginInformations.Tenant.Edition;
+}
+
+@section Scripts
+    {
+    <script abp-src="/view-resources/Areas/App/Views/SubscriptionManagement/Index.js" asp-append-version="true"></script>
+}
+
+    <div class="content d-flex flex-column flex-column-fluid" id="kt_content">
+        <abp-page-subheader title="@L("Subscription")"></abp-page-subheader>
+
+        <div class="@(await GetContainerClass())">
+            <div class="card">
+                <div class="card-body">
+                    <div id="SettingsTabPanel" class="tabbable-line">
+                        <ul class="nav nav-tabs" role="tablist">
+                            <li class="nav-item">
+                                <a href="#SubscriptionManagementInformationTab" class="nav-link active" data-bs-toggle="tab" role="tab">
+                                    @L("SubscriptionInformation")
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="#SubscriptionManagementPaymentHistoryTab" data-bs-toggle="tab" role="tab" class="nav-link">
+                                    @L("PaymentHistory")
+                                </a>
+                            </li>
+                        </ul>
+                        <div class="tab-content m-5">
+                            <div class="tab-pane active" id="SubscriptionManagementInformationTab">
+                                <div class="row justify-content-center">
+                                    <div class="col-auto">
+                                        <table class="table table-borderless">
+                                            <tbody>
+                                                <tr>
+                                                    <td class="text-end">@L("Edition")</td>
+                                                    <td class="text-start">@Model.EditionDisplayName</td>
+                                                </tr>
+
+                                                <tr>
+                                                    <td class="text-end">@L("SubscriptionEndDate")</td>
+                                                    <td class="text-start">@tenant.SubscriptionDateString</td>
+                                                </tr>
+
+                                            @foreach (var feature in Model.LoginInformations.Tenant.FeatureValues)
+                                            {
+                                                <tr>
+                                                    <td class="text-end">@feature.Name</td>
+                                                    <td class="text-start">@feature.Value</td>
+                                                </tr>
+                                            }
+
+                                            <tr>
+                                                <td colspan="2" class="text-center">
+                                                    @if (!Model.LoginInformations.Tenant.HasRecurringSubscription() && !tenantEdition.IsFree && !tenant.IsInTrialPeriod && tenant.SubscriptionEndDateUtc != null)
+                                                    {
+                                                    <a id="btnExtend" href="@Url.Action("Extend", "Payment", new { area = "", upgradeEditionId = tenant.Edition.Id, editionPaymentType = EditionPaymentType.Extend })" class="btn btn-info">
+                                                    @L("Extend")
+                                                    </a>
+                                                    }
+                                                    @if (tenant.IsInTrialPeriod)
+                                                    {
+                                                    <a href="@Url.Action("Buy", "Payment", new { area = "", editionId = tenant.Edition.Id, editionPaymentType = (int)EditionPaymentType.BuyNow, tenantId = AbpSession.TenantId })" class="btn btn-info">
+                                                    @L("BuyNow")
+                                                    </a>
+                                                    }
+                                                    //else if (!tenantEdition.IsHighestEdition)
+                                                    else if (tenantEdition.IsFree || (!tenantEdition.IsFree && tenant.SubscriptionEndDateUtc != null))
+                                                    {
+                                                    <a href="@Url.Action("SelectEdition", "TenantRegistration", new { area = "", editionPaymentType = EditionPaymentType.Upgrade })" class="btn btn-warning">
+                                                    @L("Upgrade")
+                                                    </a>
+                                                    }
+
+                                                </td>
+                                            </tr>
+
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="mb-3 row @(Model.LoginInformations.Tenant.SubscriptionPaymentType == SubscriptionPaymentType.RecurringAutomatic ? "" : "d-none")">
+                                <label class="col-md-4 control-label"></label>
+                                <div class="col-md-8">
+                                    <a id="btnDisableRecurringPayments" href="javascript:;" class="btn btn-secondary">
+                                        @L("DisableRecurringPayments")
+                                    </a>
+                                </div>
+                            </div>
+
+                            <div class="mb-3 row @(Model.LoginInformations.Tenant.SubscriptionPaymentType == SubscriptionPaymentType.RecurringManual ? "" : "d-none")">
+                                <label class="col-md-4 control-label"></label>
+                                <div class="col-md-8">
+                                    <a id="btnEnableRecurringPayments" href="javascript:;" class="btn btn-info">
+                                        @L("EnableRecurringPayments")
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="SubscriptionManagementPaymentHistoryTab" class="tab-pane">
+                            <table id="PaymentHistoryTable" class="table align-middle table-row-dashed fs-6 gy-5 dataTable no-footer">
+                                <thead>
+                                    <tr>
+                                        <th></th>
+                                        <th>@L("Invoice")</th>
+                                        <th>@L("ProcessTime")</th>
+                                        <th>@L("Edition")</th>
+                                        <th>@L("Gateway")</th>
+                                        <th>@L("Amount")</th>
+                                        <th>@L("Status")</th>
+                                        <th>@L("Period")</th>
+                                        <th>@L("DayCount")</th>
+                                        <th>@L("ExternalPaymentId")</th>
+                                        <th>@L("InvoiceNo")</th>
+                                        <th>@L("SubscriptionSummary")</th>
+                                    </tr>
+                                </thead>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,87 @@
+﻿@using AIaaS.Authorization
+@using AIaaS.Web.Areas.App.Models.NlpChatbots
+@using AIaaS.Web.Areas.App.Startup
+@model NlpChatbotsViewModel
+@{
+	ViewBag.CurrentPageName = AppPageNames.Tenant.NlpChatbots;
+}
+
+@section Styles
+{
+<link rel="stylesheet" abp-href="/view-resources/Areas/App/Views/NlpChatbots/Index.css" asp-append-version="true" />
+}
+
+@section Scripts
+{
+<script abp-src="/view-resources/Areas/App/Views/NlpChatbots/Index.js" asp-append-version="true"></script>
+}
+
+<div class="content d-flex flex-column flex-column-fluid">
+
+	<abp-page-subheader title="@L("NlpChatbots")" description="@L("NlpChatbotsHeaderInfo")">
+
+		@if ((Model.Usage.Creatable() && IsGranted(AppPermissions.Pages_NlpChatbot_NlpChatbots_Import)) || IsGranted(AppPermissions.Pages_NlpChatbot_NlpChatbots_Export))
+		{
+			<div class="btn-group">
+				<button type="button" class="btn btn-light-success dropdown-toggle me-2" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+					<i class="far fa-file-code pe-0 me-0"></i> 
+					<span class="d-none d-md-inline-block">@L("ImportOrExport")</span>
+				</button>
+				<div class="dropdown-menu dropdown-menu-right">
+					@if (IsGranted(AppPermissions.Pages_NlpChatbot_NlpChatbots_Export) && Model.Usage.UsageCount > 0)
+					{
+						<a class="dropdown-item text-wrap" id="ExportChatbotToFileButton" href="#">
+							<i class="fas fa-file-export me-3" aria-hidden="true"></i>
+							@L("ExportToFile")
+						</a>
+					}
+					@if (Model.Usage.Creatable() && IsGranted(AppPermissions.Pages_NlpChatbot_NlpChatbots_Import))
+					{
+						<a class="dropdown-item text-wrap" id="ImportChatbotFromFileButton" href="#">
+							<i class="fas fa-file-import me-3" aria-hidden="true"></i>
+							@L("ImportFromFile")
+						</a>
+					}
+				</div>
+			</div>
+		}
+
+		@if (Model.Usage.Creatable() && IsGranted(AppPermissions.Pages_NlpChatbot_NlpChatbots_Create))
+		{
+			<button id="CreateNewNlpChatbotButton" class="btn btn-primary blue text-wrap">
+				<i class="fa fa-plus pe-0 me-0"></i> 
+				<span class="d-none d-md-inline-block">@L("CreateNewNlpChatbot")</span>
+				</button>
+		}
+	</abp-page-subheader>
+
+	<div class="@(await GetContainerClass())">
+		<div class="card card-custom gutter-b">
+			<div class="card-body mt-n5">
+				@if (string.IsNullOrEmpty(Model.WarningMessage) == false)
+				{
+					<div class="glowing text-warning mb-3">
+						<i class="fa fa-exclamation-triangle text-warning"></i> @Model.WarningMessage
+					</div>
+				}
+
+				<div class="row align-items-center">
+					<table id="NlpChatbotsTable" class="display table table-striped table-bordered table-hover dt-responsive ">
+						<thead>
+							<tr>
+								<th></th>
+								<th class="text-wrap min-w-60px align-middle">@L("Actions")</th>
+								<th class="text-wrap min-w-60px"><b>@L("Name")</b></th>
+								<th class="text-wrap min-w-60px">@L("GreetingMsg")</th>
+								<th class="text-wrap min-w-60px">@L("FailedMsg")</th>
+								<th class="text-wrap min-w-60px">@L("AlternativeQuestion")</th>
+								<th class="text-wrap min-w-60px align-middle">@L("NlpTrainingStatus")</th>
+								<th class="text-wrap min-w-60px">@L("Disabled")</th>
+							</tr>
+						</thead>
+					</table>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>

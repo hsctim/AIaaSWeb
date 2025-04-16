@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<localizationDictionary culture="zh-Hant">
+<texts>
+    <text name="InternalServerError" value="對不起,在處理您的請求期間,產生了一個服務器內部錯誤!" />
+    <text name="ValidationError" value="您的請求無效!" />
+    <text name="AreYouSure" value="你確定嗎?" />
+    <text name="Cancel" value="取消" />
+    <text name="Yes" value="確定" />
+    <text name="ValidationNarrativeTitle" value="在驗證過程中發現以下錯誤." />
+    <text name="DefaultError" value="發生錯誤!" />
+    <text name="DefaultErrorDetail" value="服務器未發送錯誤的詳細信息." />
+    <text name="DefaultError401" value="未通過身份驗證!" />
+    <text name="DefaultErrorDetail401" value="你應該執行身份認證(登入)後再執行此操作." />
+    <text name="DefaultError403" value="你沒有權限!" />
+    <text name="DefaultErrorDetail403" value="你不能執行此操作." />
+    <text name="DefaultError404" value="未找到資源!" />
+    <text name="DefaultErrorDetail404" value="未在服務中找到請求的資源." />
+    <text name="EntityNotFound" value="實體 {0} 不存在,id = {1}!" />
+  </texts>
+</localizationDictionary>

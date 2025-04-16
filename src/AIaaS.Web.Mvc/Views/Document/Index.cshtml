@@ -1,0 +1,30 @@
+﻿@using System.Globalization
+@using AIaaS
+@using AIaaS.Localization
+@using AIaaS.Web.Areas.App.Models.ContactUs
+@using AIaaS.Web.Models.Document
+@using System.Threading
+
+@model DocumentViewModel
+
+@{ Layout = "~/Views/Document/_Layout.cshtml";
+    ViewBag.DisableTenantChange = true; }
+
+<div class="@(await GetContainerClass())">
+    @try
+    {
+        var theme = await GetTheme();
+        var text = System.IO.File.ReadAllText(@System.IO.Path.Combine(Model.ContentRootPath, "Document", Model.Language, Model.Document + ".html"));
+
+        if (theme.BaseSettings.Layout.DarkMode)
+            text = text.Replace("github-markdown.min.css", "github-markdown-dark.min.css");
+        else
+            text = text.Replace("github-markdown.min.css", "github-markdown-light.min.css");
+
+        @Html.Raw(text);
+    }
+    catch (Exception)
+    {
+    }
+</div>
+

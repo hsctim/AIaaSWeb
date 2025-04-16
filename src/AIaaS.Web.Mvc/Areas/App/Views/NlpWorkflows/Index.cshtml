@@ -1,0 +1,62 @@
+﻿@using AIaaS.Authorization
+@using AIaaS.Web.Areas.App.Models.NlpWorkflows
+@using AIaaS.Web.Areas.App.Startup
+@using AIaaS.Web.TagHelpers
+@model NlpWorkflowsViewModel
+@{
+    ViewBag.CurrentPageName = AppPageNames.Tenant.NlpWorkflows;
+}
+@section Scripts
+{
+    <script abp-src="/view-resources/Areas/App/Views/NlpWorkflows/Index.js" asp-append-version="true"></script>
+}
+
+@{
+    var breadcrumbs = new List<BreadcrumbItem>()
+{
+                new BreadcrumbItem(Url.Action("Index", "NlpChatbots", new {Area = "App"}), @L("NlpChatbots")),
+        new BreadcrumbItem(L("NlpWorkflows")),
+    };
+}
+
+<div class="content d-flex flex-column flex-column-fluid">
+
+    <abp-page-subheader title='@L("NlpWorkflows")' description='@L("NlpWorkflowsHeaderInfo")' breadcrumbs='breadcrumbs'>
+
+        @if (IsGranted(AppPermissions.Pages_NlpChatbot_NlpWorkflows_Create) && Model.ChatbotSelectList.Count() > 0)
+        {
+            <button id="CreateNewNlpWorkflowButton" class="btn btn-primary blue text-wrap">
+                <i class="fa fa-plus pe-0 me-0"></i>
+                <span class="d-none d-md-inline-block">@L("CreateNewNlpWorkflow")
+                </span></button>
+        }
+    </abp-page-subheader>
+
+    <div class="@(await GetContainerClass())">
+        <div class="card card-custom gutter-b">
+            <div class="card-body">
+                <div class="form">
+                    <div class="mb-3 col-12">
+                        <label for="ChatbotSelect" class="control-label mb-3">@L("NlpChatbot")</label>
+                        @Html.DropDownList("Text", Model.ChatbotSelectList, new { @class = "form-select", id = "ChatbotSelect" })
+                    </div>
+                </div>
+
+                <div class="row align-items-center">
+                    <table id="NlpWorkflowsTable" class="display table table-striped table-bordered table-hover dt-responsive nowrap">
+                        <thead>
+                            <tr>
+                                <th></th>
+                                <th class="text-wrap min-w-60px align-middle">@L("Actions")</th>
+                                <th class="text-wrap min-w-60px">@L("NlpWorkflowState")</th>
+                                <th class="text-wrap min-w-60px">@L("NlpChatbotName")</th>
+                                <th class="text-wrap min-w-60px"><b>@L("WorkFlowName")</b></th>
+                                <th class="text-wrap min-w-60px">@L("Disabled")</th>
+                            </tr>
+                        </thead>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

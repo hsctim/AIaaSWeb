@@ -1,0 +1,109 @@
+﻿@using AIaaS.Authorization
+@using AIaaS.Web.Areas.App.Models.NlpCbMessages
+@using AIaaS.Web.Areas.App.Startup
+@using AIaaS.Web.TagHelpers
+@model NlpCbMessagesViewModel
+@{
+    ViewBag.CurrentPageName = AppPageNames.Tenant.NlpCbMessages;
+}
+
+@section Styles
+{
+    <link rel="stylesheet" abp-href="/view-resources/Areas/App/Views/NlpCbMessages/Index.css" asp-append-version="true" />
+}
+
+@section Scripts
+{
+    <script abp-src="/view-resources/Areas/App/Views/NlpCbMessages/Index.js" asp-append-version="true"></script>
+}
+
+@{
+    var breadcrumbs = new List<BreadcrumbItem>()
+{
+        new BreadcrumbItem(Url.Action("Index", "NlpChatbots", new {Area = "App"}), @L("NlpChatbots")),
+        new BreadcrumbItem(L("NlpCbMessageHistory")),
+    };
+}
+
+<div class="content d-flex flex-column flex-column-fluid">
+    <abp-page-subheader title="@L("NlpCbMessageHistory")" description="@L("NlpCbMessagesHeaderInfo")" breadcrumbs='breadcrumbs'>
+    </abp-page-subheader>
+
+    <div class="@(await GetContainerClass())">
+        <div class="card card-custom gutter-b">
+            <div class="card-body">
+                <div class="form">
+                    <div class="row align-items-center">
+                        <div class="mb-3 col-md-6">
+                            <label for="ChatbotSelect" class="control-label">@L("NlpChatbot")</label>
+
+                            @if (Model.ChatbotSelectList.Count() > 0)
+                            {
+                                @Html.DropDownList("Text", Model.ChatbotSelectList, new { @class = "form-select", id = "ChatbotSelect" })
+                            }
+                            else
+                            {
+                                @Html.DropDownList("Text", Model.ChatbotSelectList, L("PickNlpChatbot"), new { @class = "form-control selectpicker", id = "ChatbotSelect" })
+                            }
+
+                        </div>
+
+                        <div class="col-md-6">
+                            @if (Model.ChatbotSelectList.Count() > 0)
+                            {
+                                <div class="mb-3 align-items-center">
+                                    <label for="NlpQAsTableFilter" class="control-label">@L("SearchWithThreeDot")</label>
+                                    <div class="input-group">
+                                        <input type="text" id="NlpCbMessagesTableFilter" class="form-control m-input" placeholder="@L("SearchWithThreeDot")" value="@Model.FilterText">
+                                        <span class="input-group-btn">
+                                            <button id="GetNlpCbMessagesButton" class="btn btn-primary" type="submit"><i class="flaticon-search-1"></i></button>
+                                        </span>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+                <div id="AdvacedAuditFiltersArea" style="display: none" class="row mb-4">
+                    <div class="col-md-12">
+                        <div class="kt-separator kt-separator--border-dashed"></div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="MinNlpSentTimeFilterId">@L("NlpCbSentTimeRange")</label>
+                            <div class="input-group">
+                                <input class="form-control m-input date-picker" type="text" placeholder="@L("MinValue")" id="MinNlpSentTimeFilterId">
+                                <span style="line-height: 40px;padding: 0 15px 0 15px;"> &mdash; </span>
+                                <input class="form-control m-input date-picker" type="text" placeholder="@L("MaxValue")" id="MaxNlpSentTimeFilterId">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mb-4">
+                    <div class="col-xl-12">
+                        <span id="ShowAdvancedFiltersSpan" class="text-muted clickable-item"><i class="fa fa-angle-down"></i> @L("ShowAdvancedFilters")</span>
+                        <span id="HideAdvancedFiltersSpan" class="text-muted clickable-item" style="display: none"><i class="fa fa-angle-up"></i> @L("HideAdvancedFilters")</span>
+                    </div>
+                </div>
+                <div class="row align-items-center">
+                    <table id="NlpCbMessagesTable" class="display table table-striped table-bordered table-hover dt-responsive nowrap">
+                        <thead>
+                            <tr>
+                                <th></th>
+                                <th class="text-wrap min-w-60px">@L("Time")</th>
+                                <th class="text-wrap min-w-60px">@L("NlpCbSentType")</th>
+                                <th class="text-wrap min-w-60px">@L("NlpCbMessage")</th>
+                                <th class="text-wrap min-w-60px">@L("NlpWorkflow")</th>
+                                <th class="text-wrap min-w-60px">@L("NlpTableChatbotName")</th>
+                                <th class="text-wrap min-w-60px">@L("NlpCbAgentName")</th>
+                                @*<th>@L("NlpCbUserName")</th>*@
+                                <th class="text-wrap min-w-60px">@L("NlpCbChannel")</th>
+                                <th class="text-wrap min-w-60px">@L("NlpCbClientId")</th>
+                            </tr>
+                        </thead>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

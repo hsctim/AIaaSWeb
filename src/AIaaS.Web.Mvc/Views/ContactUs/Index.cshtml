@@ -1,0 +1,60 @@
+﻿@using System.Globalization
+@using AIaaS
+@using AIaaS.Localization
+@using AIaaS.Web.Areas.App.Models.ContactUs
+
+@model ContactUsViewModel
+
+@{ Layout = "~/Views/Account/_Layout.cshtml";
+    ViewBag.DisableTenantChange = true; }
+
+@*@{ ViewBag.CurrentPageName = AppPageNames.Common.ContactUs; }*@
+@section Scripts
+{
+    <script abp-src="/view-resources/Areas/App/Views/ContactUs/Index.js" asp-append-version="true"></script>
+}
+
+<div class="container py-10">
+    <div class="row">
+        <div class="mx-auto w-100">
+            <form id="contactus-form" role="form" novalidate class="form-validation" asp-action="SendEmail" method="post">
+                @*<form class="form forget-form" asp-action="SendPasswordResetLink" method="post">*@
+                @*<div class="messages"></div>*@
+                <div class="pb-13 pt-lg-0 pt-5">
+                    <h3 class="fw-bolder text-dark fs-4 fs-1-lg">@L("ContactUs")</h3>
+                </div>
+
+                <div class="controls">
+                    <div class="row">
+                        <div class="col-md-12">
+                                    <div class="mb-5">
+                                <label for="form_name">@L("Name")</label>
+                                <input id="form_name" type="text" name="name" class="form-control" required placeholder="@L("YourFullName")" value="@Model.Name">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12">
+                                    <div class="mb-5">
+                                <label for="form_email">@L("EmailAddress")</label>
+                                <input id="form_email" type="email" name="email" class="form-control" required placeholder="@L("YourEMail")" value="@Model.EMail">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12">
+                                    <div class="mb-5">
+                                <label for="form_message">@L("Message")</label>
+                                <textarea id="form_message" name="message" class="form-control" rows="5" required placeholder="@L("YourMessage")"></textarea>
+                            </div>
+                        </div>
+                        <div class="col-md-12 text-end">
+                            <button type="button" id="ContactUsSubmit" class="btn btn-primary btn-send"><i class="far fa-envelope"></i> <span>@L("Send")</span></button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+

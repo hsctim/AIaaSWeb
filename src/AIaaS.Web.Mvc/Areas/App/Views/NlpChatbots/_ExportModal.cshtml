@@ -1,0 +1,29 @@
+﻿@using System.Globalization
+@using AIaaS.Web.Areas.App.Models.Common.Modals
+@using AIaaS.Web.Areas.App.Models.NlpQAs
+@model NlpChatbotSelectionModel
+
+@await Html.PartialAsync("~/Areas/App/Views/Common/Modals/_ModalHeader.cshtml", new ModalHeaderViewModel(L("ExportToFile")))
+
+<div class="modal-body">
+	<form name="NlpChatbotInformationsForm" role="form" novalidate class="form-validation">
+
+		<div class="mb-3">
+			<label for="ChatbotSelect" class="control-label">@L("Nlp_ExportChatbot_SelectChatbot")</label>
+			@Html.DropDownList("ChatbotId", Model.ChatbotSelectList, new { @class = "form-control", id = "ChatbotSelect" })
+		</div>
+
+
+	</form>
+</div>
+
+
+<div class="modal-footer">
+	<button type="button" class="btn btn-light-primary fw-bold close-button" data-bs-dismiss="modal">@L("Cancel")</button>
+
+	<div class="mb-3 text-end">
+		<button class="btn btn-primary blue" id="ExportChatbotToFile">
+			<i class="far fa-file-code"></i>@L("ExportToFile")
+		</button>
+	</div>
+</div>

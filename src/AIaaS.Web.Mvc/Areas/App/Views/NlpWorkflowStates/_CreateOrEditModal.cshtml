@@ -1,0 +1,120 @@
+﻿@using System.Globalization
+@using AIaaS.Web.Areas.App.Models.Common.Modals
+@using AIaaS.Web.Areas.App.Models.NlpWorkflowStates
+@model CreateOrEditNlpWorkflowStateModalViewModel
+@using Abp.Extensions
+@await Html.PartialAsync("~/Areas/App/Views/Common/Modals/_ModalHeader.cshtml", new ModalHeaderViewModel(Model.IsViewMode ? L("ViewNlpWorkflowState") : (Model.IsEditMode ? (L("EditNlpWorkflowState")) : L("CreateNewNlpWorkflowState")))
+
+    )
+
+<div class="modal-body">
+    <div id="NlpWorkflowStateInformationsTab">
+        <form name="NlpWorkflowStateInformationsForm" role="form" novalidate class="form-validation">
+
+            @if (Model.IsEditMode || Model.IsViewMode)
+            {
+                <input type="hidden" name="id" value="@Model.NlpWorkflowState.Id" />
+            }
+
+            <div class="row">
+                <div class="mb-3 col-xl-6">
+                    <label for="nlpChatbotName">@L("NlpChatbot")</label>
+                    <input class="form-control" id="nlpChatbotName" value="@Model.NlpChatbotName" type="text" disabled />
+                </div>
+
+                <div class="mb-3 col-xl-6">
+                    <input type="hidden" name="nlpWorkflowId" id="nlpWorkflowId" value="@Model.NlpWorkflowState.NlpWorkflowId" />
+                    <label for="nlpWorkflowName">@L("NlpWorkflow")</label>
+                    <input class="form-control" id="nlpWorkflowName" value="@Model.NlpWorkflowName" type="text" disabled />
+                </div>
+                <div class="mb-3 col-xl-6">
+                    <label for="NlpWorkflowState_StateName">@L("StateName")</label>
+                    <input class="form-control" id="NlpWorkflowState_StateName" value="@Model.NlpWorkflowState.StateName" type="text" name="stateName" required maxlength="@AIaaS.Nlp.NlpWorkflowStateConsts.MaxStateNameLength" minlength="@AIaaS.Nlp.NlpWorkflowStateConsts.MinStateNameLength" @Html.Raw(Model.IsViewMode ? "disabled" : "") />
+                </div>
+
+                <div class="mb-3 col-xl-6">
+                    <label for="NlpWorkflowState_StateInstruction">@L("StateInstruction")</label>
+                    <textarea id="NlpWorkflowState_StateInstruction" name="stateInstruction" class="form-control" rows="1" maxlength="@AIaaS.Nlp.NlpWorkflowStateConsts.MaxStateInstructionLength" minlength="@AIaaS.Nlp.NlpWorkflowStateConsts.MinStateInstructionLength" @Html.Raw(Model.IsViewMode ? "disabled" : "")>@Model.NlpWorkflowState.StateInstruction</textarea>
+                </div>
+
+                <div class="mb-3 col-xl-6">
+                    <label><b>@L("OutgoingFalseOp")</b></label>
+                    <div class="mt-1 ps-6 form-control">
+                        <div class="mb-3">
+                            <label for="falsePredict1ResponseMsg">@L("ResponseMessage(Optional)")</label>
+                            <input class="form-control" id="falsePredict1ResponseMsg" value="@Model.FalsePrediction1_Op.ResponseMsg" type="text" name="falsePredict1ResponseMsg" maxlength="@AIaaS.Nlp.NlpWorkflowStateConsts.MaxOutgoingFalseOpLength" minlength="@AIaaS.Nlp.NlpWorkflowStateConsts.MinOutgoingFalseOpLength" @Html.Raw(Model.IsViewMode ? "disabled" : "") />
+                        </div>
+                        <div class="mb-3">
+                            <label for="falsePredict1Select">@L("WlsSelectOperation")</label>
+                            @if (Model.IsViewMode)
+                            {
+                                @Html.DropDownList("falsePredict1Select", new SelectList(Model.WorkflowStateList, "Id", "DisplayName", Model.FalsePrediction1_Op.NextStatus.ToString()), new { @class = "form-control", @required = "required", @disabled = "disabled" })
+                            }
+                            else
+                            {
+                                @Html.DropDownList("falsePredict1Select", new SelectList(Model.WorkflowStateList, "Id", "DisplayName", Model.FalsePrediction1_Op.NextStatus.ToString()), new { @class = "form-control", @required = "required" })
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-3 col-xl-6">
+                    <label><b>@L("Outgoing3FalseOp")</b></label>
+                    <div class="mt-1 ps-6 form-control">
+                        <div class="mb-3">
+                            <label for="falsePredict3ResponseMsg">@L("ResponseMessage(Optional)")</label>
+                            <input class="form-control" id="falsePredict3ResponseMsg" value="@Model.FalsePrediction3_Op.ResponseMsg" type="text" name="falsePredict3ResponseMsg" maxlength="@AIaaS.Nlp.NlpWorkflowStateConsts.MaxOutgoingFalseOpLength" minlength="@AIaaS.Nlp.NlpWorkflowStateConsts.MinOutgoingFalseOpLength" @Html.Raw(Model.IsViewMode ? "disabled" : "") />
+                        </div>
+                        <div class="mb-3">
+                            <label for="falsePredict3Select">@L("WlsSelectOperation")</label>
+
+                            @if (Model.IsViewMode)
+                            {
+                                @Html.DropDownList("falsePredict3Select", new SelectList(Model.WorkflowStateList, "Id", "DisplayName", Model.FalsePrediction3_Op.NextStatus.ToString()), new { @class = "form-control", @required = "required", @disabled = "disabled" })
+                            }
+                            else
+                            {
+                                @Html.DropDownList("FalsePredict3Select", new SelectList(Model.WorkflowStateList, "Id", "DisplayName", Model.FalsePrediction3_Op.NextStatus.ToString()), new { @class = "form-control", @required = "required" })
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label><b>@L("ResponseNonWorkflowAnswer")</b></label>
+                    <div class="mt-1 ps-6 form-control">
+                        <div class="mb-3">
+                            <label class="checkbox checkbox-outline">
+                                <label for="NlpWorkflowState_ResponseNonWorkflowAnswer" class="form-check form-check-custom form-check-sm">
+                                    <input id="NlpWorkflowState_ResponseNonWorkflowAnswer" type="checkbox" name="responseNonWorkflowAnswer" class="form-check-input" value="true" @Html.Raw(Model.NlpWorkflowState.ResponseNonWorkflowAnswer ? "checked=\"checked\"" : "") @Html.Raw(Model.IsViewMode ? "disabled" : "") />
+                                    <span class="form-check-label">
+                                        @L("ResponseNonWorkflowAnswer")
+                                    </span>
+                                </label>
+                            </label>
+                        </div>
+                        <div>
+                            <label class="checkbox checkbox-outline">
+                                <label for="NlpWorkflowState_DontResponseNonWorkflowErrorAnswer" class="form-check form-check-custom form-check-sm">
+                                    <input id="NlpWorkflowState_DontResponseNonWorkflowErrorAnswer" type="checkbox" name="dontResponseNonWorkflowErrorAnswer" class="form-check-input" value="true" @Html.Raw(Model.NlpWorkflowState.DontResponseNonWorkflowErrorAnswer ? "checked=\"checked\"" : "") @Html.Raw(Model.IsViewMode ? "disabled" : "") />
+                                    <span class="form-check-label">
+                                        @L("DontResponseNonWorkflowErrorAnswer")
+                                    </span>
+                                </label>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+@if (Model.IsViewMode)
+{
+    @await Html.PartialAsync("~/Areas/App/Views/Common/Modals/_ModalFooterWithClose.cshtml")
+}
+else
+{
+    @await Html.PartialAsync("~/Areas/App/Views/Common/Modals/_ModalFooterWithSaveAndCancel.cshtml")
+}

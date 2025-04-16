@@ -1,0 +1,13 @@
+﻿@using AIaaS.Web.Areas.App.Models.Layout
+@using AIaaS.Web.Areas.App.Views.Shared.Components.AppLogo
+@model HeaderViewModel
+@{
+    Layout = null;
+}
+<a href="@Url.Action("Index", "Home", new {area = string.Empty})" class="d-flex align-items-center">
+    @await Component.InvokeAsync(typeof(AppLogoViewComponent), new
+    {
+        LogoSkin = ViewBag.BrandLogoSkin,
+        logoClass = "h-45px logo"
+    })
+</a>

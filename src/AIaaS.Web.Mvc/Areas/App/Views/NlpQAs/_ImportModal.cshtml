@@ -1,0 +1,28 @@
+﻿@using System.Globalization
+@using AIaaS.Web.Areas.App.Models.Common.Modals
+@using AIaaS.Web.Areas.App.Models.NlpQAs
+@model NlpChatbotSelectionModel
+
+@await Html.PartialAsync("~/Areas/App/Views/Common/Modals/_ModalHeader.cshtml", new ModalHeaderViewModel(L("ImportFromFile")))
+
+<div class="modal-body">
+	<form name="NlpQAInformationsForm" role="form" novalidate class="form-validation">
+		<div class="mb-3">
+			<label for="ChatbotSelect" class="control-label">@L("Nlp_ImportQA_SelectChatbot")</label>
+			@Html.DropDownList("ChatbotId", Model.ChatbotSelectList, new { @class = "form-control", id = "ChatbotSelect" })
+		</div>
+	</form>
+</div>
+
+<div class="modal-footer">
+	<input class="form-control d-none" id="ImportQAsFromExcelFile" type="file" name="excelFileObj"
+		   accept=".xlsx, .xls, .cs" />
+
+	<label class="btn btn-primary blue" id="ImportQAsFromExcelButton" for="ImportQAsFromExcelFile">
+		<i class="far fa-file-excel"></i> @L("ImportFromFile")
+	</label>
+
+	<button type="button" class="btn btn-light-primary fw-bold close-button" data-bs-dismiss="modal">@L("Close")</button>
+</div>
+
+@*@await Html.PartialAsync("~/Areas/App/Views/Common/Modals/_ModalFooterWithClose.cshtml")*@

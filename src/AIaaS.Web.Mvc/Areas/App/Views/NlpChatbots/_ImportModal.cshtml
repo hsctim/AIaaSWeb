@@ -1,0 +1,31 @@
+﻿@using System.Globalization
+@using AIaaS.Web.Areas.App.Models.Common.Modals
+@using AIaaS.Web.Areas.App.Models.NlpQAs
+@model NlpChatbotSelectionModel
+
+@await Html.PartialAsync("~/Areas/App/Views/Common/Modals/_ModalHeader.cshtml", new ModalHeaderViewModel(L("ImportFromFile")))
+
+<div class="modal-body">
+	<form name="NlpChatbotInformationsForm" role="form" novalidate class="form-validation">
+
+		<div class="mb-3">
+			<label for="ChatbotSelect" class="control-label">@L("Nlp_ImportChatbot")</label>
+			@*@Html.DropDownList("ChatbotId", Model.ChatbotSelectList, new { @class = "form-control", id = "ChatbotSelect" })*@
+		</div>
+
+		@*<div class="mb-3 text-end">
+
+
+			</div>*@
+	</form>
+</div>
+
+<div class="modal-footer">
+	<button type="button" class="btn btn-light-primary fw-bold close-button" data-bs-dismiss="modal">@L("Cancel")</button>
+
+	<input class="form-control d-none" id="ImportChatbotFromFile" type="file" name="jsonFileObj" accept=".json" />
+
+	<label class="btn btn-primary blue" id="ImportChatbotsFromFileButton" for="ImportChatbotFromFile">
+		<i class="far fa-file-code"></i>@L("ImportFromFile")
+	</label>
+</div>

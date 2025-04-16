@@ -1,0 +1,249 @@
+﻿@using System.Globalization
+@using AIaaS.Web.Areas.App.Models.Common.Modals
+@using AIaaS.Web.Areas.App.Models.NlpQAs
+@model CreateOrEditNlpQAModalViewModel
+
+@{
+    bool IsViewMode = Model.IsViewMode || (Model.IsEditMode == true && PermissionChecker.IsGranted("Pages.NlpChatbot.NlpQAs.Edit") == false);
+
+    var modelTitle = Model.NlpQA.QaType == 1 ? (IsViewMode ? L("ViewUnanswerableNlpQA") : L("EditUnanswerableNlpQA")) : (IsViewMode ? L("ViewNlpQA") : L("EditNlpQA"));
+
+    var enabledWorkflow = Model.NlpQA.CurrentWfState != null || Model.NlpQA.NextWfState != null;
+}
+
+@await Html.PartialAsync("~/Areas/App/Views/Common/Modals/_ModalHeader.cshtml", new ModalHeaderViewModel(modelTitle, Model.NlpQA.QaType == 1 ? @L("UnanswerableNlpQAButton_") : ""))
+
+
+<div class="modal-body">
+    <div id="NlpQAInformationsTab">
+        <form name="NlpQAInformationsForm" role="form" novalidate class="form-validation">
+            <input type="hidden" name="qaType" value="@Model.NlpQA.QaType" />
+
+            @if (Model.IsEditMode)
+            {
+                <input type="hidden" name="id" value="@Model.NlpQA.Id" />
+            }
+
+            @if (IsViewMode)
+            {
+                <input type="hidden" id="IsViewMode" value="1" />
+            }
+            else
+            {
+                <input type="hidden" id="IsViewMode" value="0" />
+            }
+
+            @if (Model.NlpQA.QaType != 1)
+            {
+                <ul class="nav nav-tabs" role="tablist">
+                    <li class="nav-item">
+                        <a href="#QATab" class="nav-link active" data-bs-toggle="tab" role="tab">
+                            @L("QATab")
+                        </a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a href="#WorkflowTab" data-bs-toggle="tab" role="tab" class="nav-link">
+                            @L("WorkflowTab")
+                        </a>
+                    </li>
+
+                </ul>
+            }
+
+            <div class="tab-content">
+                <div class="tab-pane pt-5 active" id="QATab" role="tabpanel">
+
+                    <input type="hidden" id="NlpChatbotLanguage" value="@Model.NlpChatbotLanguage" name="nlpChatbotLanguage" />
+
+                    <div class="row">
+                        <div @Html.Raw(Model.NlpQA.QaType == 1 ? "class='mb-5 col-12'" : "class='mb-5 col-md-6'")>
+                            <label class="mb-2" for="nlpChatbotId">@L("NlpChatbot")</label>
+
+                            @if (Model.ChatbotSelectList == null || Model.ChatbotSelectList.Count == 0)
+                            {
+                                <input class="form-control" id="NlpChatbotId" value="@Model.NlpChatbotId"
+                                       type="hidden" name="nlpChatbotId" required readonly />
+
+                                <input class="form-control readonly" id="NlpChatbotName" placeholder="@Model.NlpChatbotName" type="text" name="nlpChatbotName" readonly />
+                            }
+                            else
+                            {
+                                @Html.DropDownList("nlpChatbotId", new SelectList(Model.ChatbotSelectList, "Id", "DisplayName", Model.NlpChatbotId.ToString()), @L("SelectANlpChatbot"), new { @class = "form-control", @required = "required" })
+                            }
+                        </div>
+
+                        @if (Model.NlpQA.QaType != 1)
+                        {
+                            <div class="mb-5 col-md-6">
+                                <label class="mb-2" for="NlpQA_QuestionCategory">@L("QuestionCategory")</label>
+                                <input class="form-control" id="NlpQA_QuestionCategory"
+                                       value="@Model.NlpQA.QuestionCategory" type="text" name="questionCategory"
+                                       maxlength="@AIaaS.Nlp.NlpQAConsts.MaxQuestionCategoryLength"
+                                       minlength="@AIaaS.Nlp.NlpQAConsts.MinQuestionCategoryLength" list="ModalCategoryList" placeholder="@L("InputSelectQuestionCategory")" />
+                                <datalist id="ModalCategoryList">
+                                </datalist>
+                            </div>
+                        }
+                    </div>
+                    <div class="mb-5">
+                        <div class="d-flex">
+                            <label class="mb-2">@L("Question")</label>
+                        </div>
+
+                        @*                        @if (String.IsNullOrWhiteSpace(Model.NlpQA.SegmentErrorMsg) == false)
+                        {
+                        <div class="alert alert-danger alert-dismissible fade show mt-2" role="alert">
+                        @Model.NlpQA.SegmentErrorMsg.Replace("\\n", " ")
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                        }*@
+
+                        @if (Model.NlpQA != null && Model.NlpQA.Questions != null)
+                        {
+                            @foreach (var item in Model.NlpQA.Questions)
+                            {
+                                <div class='questonDiv'>
+                                    <div class="d-flex justify-content-end mb-2">
+                                        <div class="w-100 me-auto">
+                                            <input class="form-control NlpApproximateQuestion" placeholder="@L("InputNewNlpQuestion")" type="text" name="questions[]" value="@item" required>
+                                        </div>
+                                        @if (IsViewMode == false)
+                                        {
+                                            <div class="ms-5 my-auto">
+                                                <button class="form-control nlpdeletebutton btn btn-danger btn-sm text-nowrap" type="button" title="@L("Delete")">
+                                                    <i class="fa fa-minus mx-0"></i><span class="d-none d-lg-inline-block">@L("Delete")</span>
+                                                </button>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <div class='questonDiv'>
+                                <div class="d-flex justify-content-end mb-2">
+                                    <div class="w-100 me-auto">
+                                        <input class="form-control NlpApproximateQuestion" placeholder="@L("InputNewNlpQuestion")" type="text" name="questions[]" required>
+                                    </div>
+                                    <div class="ms-5 my-auto">
+                                        <button class="form-control nlpdeletebutton btn btn-danger btn-sm text-nowrap" type="button" title="@L("Delete")">
+                                            <i class="fa fa-minus mx-0"></i><span class="d-none d-lg-inline-block">@L("Delete")</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+
+                        <div id="NlpQuestionDiv" class="text-end">
+                            @if (IsViewMode == false)
+                            {
+                                if (Model.NlpQA.QaType == 1)
+                                {
+                                    <button class="ms-auto btn btn-primary btn-sm mt-3" type="button" id="NlpQA_AddQuestion" title="@L("AddUnanswerableNlpQA")"><i class="fa fa-plus mx-0"></i>@L("New")</button>
+                                }
+                                else
+                                {
+                                    <button class="ms-auto btn btn-primary btn-sm mt-3" type="button" id="NlpQA_AddQuestion" title="@L("NewNlpApproximateQuestion")"><i class="fa fa-plus mx-0"></i>@L("New")</button>
+
+                                }
+                            }
+                        </div>
+                    </div>
+
+                    @if (Model.NlpQA.QaType != 1)
+                    {
+                        <div class="mb-5">
+                            <div class="d-flex">
+                                <label class="mb-2">@L("Answer")</label>
+                            </div>
+
+                            @if (Model.NlpQA != null && Model.NlpQA.AnswerSets != null)
+                            {
+                                @foreach (var item in Model.NlpQA.AnswerSets)
+                                {
+                                    <div class="d-flex justify-content-end mb-2">
+                                        <div class="input-group flex-grow-1">
+                                    <input class="form-control NlpApproximateAnswer" placeholder="@L("InputNewNlpAnswer")" type="text" name="answers[]" value="@item.Answer" required>
+                                            <div class="my-auto ms-3">
+
+                                            <label class="form-check form-check-custom form-check-solid gpt-check">
+                                                    <input type="checkbox" name="gpts[]" class="form-check-input gpt-check-input NlpGptCheck" value="true" @Html.Raw(item.GPT ? "checked=\"checked\"" : "" ) />
+
+                                            </label>
+
+                                                @*<input id="NlpChatbot_Disabled" type="checkbox" name="disabled" class="form-check-input" value="true" @Html.Raw(Model.NlpChatbot.Disabled ? "checked=\"checked\"" : "") />*@
+
+                                            </div>
+
+                                </div>
+                                    @if (IsViewMode == false)
+                                    {
+                                    <div class="ms-5 my-auto">
+                                        <button class="nlpdeletebutton btn btn-danger btn-sm text-nowrap" type="button" title="@L("Delete")">
+                                            <i class="fa fa-minus mx-0"></i><span class="d-none d-lg-inline-block">@L("Delete")</span>
+                                        </button>
+                                    </div>
+                                    }
+                            </div>
+                                }
+                            }
+                            else
+                            {
+                        <div class="d-flex justify-content-end mb-2">
+                                    <div class="flex-grow-1">
+                                <input class="form-control NlpApproximateAnswer" placeholder="@L("InputNewNlpAnswer")" type="text" name="answers[]" required>
+                            </div>
+                            <div class="ms-5">
+                                <button class="nlpdeletebutton btn btn-danger btn-sm text-nowrap" type="button" title="@L("Delete")">
+                                    <i class="fa fa-minus mx-0"></i><span class="d-none d-lg-inline-block">@L("Delete")</span>
+                                </button>
+                            </div>
+                        </div>
+                            }
+
+                    <div id="NlpAnswerDiv" class="text-end">
+                                @if (IsViewMode == false)
+                                {
+                            <button class="btn btn-primary mt-3 btn-sm  " type="button" id="NlpQA_AddAnswer"><i class="fa fa-plus mx-0" title="@L("NewNlpApproximateAnswer")"></i>@L("New")</button>
+                                }
+                    </div>
+                </div>
+                    }
+    </div>
+
+                @if (Model.NlpQA.QaType != 1)
+                {
+        <div class="tab-pane pt-5" id="WorkflowTab" role="tabpanel">
+            <div class="row">
+                <div class="mb-5 col-12">
+                    <label class="mb-2" for="currentWfState">@L("WFStateFilter")</label>
+
+                                @if (Model.CurrentWFSSelectList != null)
+                                {
+                                    @Html.DropDownList("currentWfState", new SelectList(Model.CurrentWFSSelectList, "Id", "DisplayName", Model.NlpQA.CurrentWfState?.ToString()), new { @class = "form-control" })
+                                }
+                </div>
+                <div class="mb-5 col-12">
+                    <label class="mb-2" for="nextWfState">@L("NextWFStates")</label>
+                                @if (Model.NextWFSSelectList != null)
+                                {
+                                    @Html.DropDownList("nextWfState", new SelectList(Model.NextWFSSelectList, "Id", "DisplayName", Model.NlpQA.NextWfState?.ToString()), new { @class = "form-control" })
+                                }
+                </div>
+            </div>
+        </div>
+                }
+
+</div>
+        </form>
+    </div>
+</div>
+
+@{
+    if (IsViewMode)
+        @await Html.PartialAsync("~/Areas/App/Views/Common/Modals/_ModalFooterWithClose.cshtml")
+    else
+        @await Html.PartialAsync("~/Areas/App/Views/Common/Modals/_ModalFooterWithSaveAndCancel.cshtml")
+}
